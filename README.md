@@ -2,7 +2,7 @@
 
 ![TCC SU Header](assets/tcc_su_header.jpg)
 
-# 📰 TCC SU — Plataforma de Blog & Notícias
+# 🧩 TCC SU — Plataforma de Blog, Conscientização & Notícias
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-green?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
@@ -10,7 +10,7 @@
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
 
-*Plataforma web no estilo blog/portal de notícias desenvolvida especialmente para o Trabalho de Conclusão de Curso (TCC) da membra **Su**.*
+*Plataforma web no estilo blog e portal de informações sobre o **Transtorno do Espectro Autista (TEA)**, focada em inclusão, conscientização e artigos, desenvolvida especialmente para o Trabalho de Conclusão de Curso (TCC) da integrante **Su**.*
 
 </div>
 
@@ -18,7 +18,7 @@
 
 ## 📌 Sobre o Projeto
 
-O **TCC SU** é uma aplicação web moderna e responsiva voltada para publicação e gerenciamento de notícias e artigos. O sistema oferece uma experiência completa tanto para os leitores quanto para a equipe editorial e administradores.
+O **TCC SU** é uma aplicação web acolhedora, moderna e responsiva voltada para a publicação e gerenciamento de artigos e notícias sobre a conscientização do autismo. O sistema oferece uma experiência acessível e intuitiva tanto para os leitores quanto para a equipe editorial e administradores.
 
 ### 🚀 Funcionalidades Principais
 
