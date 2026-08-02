@@ -22,6 +22,11 @@ Cada agente possui um arquivo de diretriz detalhado armazenado na pasta `agents/
    - **Arquitetura**: Divisão em `routes`, `controllers` e `services`.
    - **Padrões**: Validação com Zod, respostas RESTful estruturadas, tratamento semântico de erros HTTP.
 
+4. 🔐 **[Agente 4: Autenticação, Autorização e Segurança](agents/auth-agent.md)**
+   - **OAuth & JWT**: Login Google OAuth 2.0, verificação via `google-auth-library` e geração de JWT.
+   - **Middlewares**: Autenticação com `ensureAuthenticated` e controle de acesso com `ensureRole([ADMIN, EDITOR, USER])`.
+   - **Persistência**: Upsert no SQLite via Prisma Client e gerenciamento de sessão/cache.
+
 ---
 
 ## 🚀 Visão Geral do Repositório
@@ -34,7 +39,8 @@ TCC SU/
 ├── agents/                    # Pasta contendo os agentes de IA
 │   ├── git-commit-agent.md
 │   ├── database-agent.md
-│   └── backend-routes-agent.md
+│   ├── backend-routes-agent.md
+│   └── auth-agent.md
 ├── Front/                     # Aplicação Frontend (Next.js, TypeScript, Tailwind CSS, shadcn/ui, Axios)
 └── Back/                      # Aplicação Backend (Node.js, Express, Prisma ORM, SQLite, node-cache)
 ```
