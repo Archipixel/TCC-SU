@@ -41,6 +41,7 @@ O **TCC SU** é uma aplicação web acolhedora, moderna e responsiva voltada par
 ### ⚙️ Backend (`Back/`)
 - **Runtime & Servidor**: [Node.js](https://nodejs.org/) com [Express](https://expressjs.com/) em TypeScript
 - **ORM & Banco de Dados**: [Prisma ORM](https://www.prisma.io/) com **SQLite** (`prisma/dev.db`)
+- **Autenticação & Segurança**: **Google OAuth** (`google-auth-library`), **JWT** (`jsonwebtoken`) e controle de acesso por cargos (`ADMIN`, `EDITOR`, `USER`)
 - **Cache de Memória**: `node-cache`
 - **Validação de Dados**: [Zod](https://zod.dev/)
 
