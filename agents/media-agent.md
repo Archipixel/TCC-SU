@@ -11,17 +11,17 @@ Este documento define as regras obrigatórias, fluxo de processamento, regras de
    - O acesso às imagens deve ser realizado EXCLUSIVAMENTE via endpoint `GET /api/media/:id`.
 
 2. **Segurança e Validação de Upload**:
-   - Aceitar apenas os formatos de imagem permitidos: **PNG, JPG, JPEG e WEBP**.
-   - Validar rigorosamente a extensão do arquivo e o **MIME Type** (`image/png`, `image/jpeg`, `image/jpg`, `image/webp`).
-   - Limitar o tamanho máximo de upload para **25 MB**. Rejeitar imediatamente arquivos maiores ou maliciosos.
-   - **Suporte a Base64**: O sistema suporta uploads tanto por `multipart/form-data` quanto por strings de dados em Base64 (`data:image/png;base64,...`).
+   - Aceitar os formatos de imagem permitidos: **PNG, JPG, JPEG, WEBP e GIF**.
+   - Validar rigorosamente a extensão do arquivo e o **MIME Type** (`image/png`, `image/jpeg`, `image/jpg`, `image/webp`, `image/gif`).
+   - Limites de tamanho: **25 MB** para imagens padrão (PNG/JPG/WEBP) e **50 MB** para **GIFs**. Rejeitar imediatamente arquivos maiores ou maliciosos.
+   - **Suporte a Base64**: O sistema suporta uploads tanto por `multipart/form-data` quanto por strings de dados em Base64 (`data:image/gif;base64,...`).
 
 3. **Processamento, Renomeação e Otimização Automática (`sharp`)**:
-   - **Renomeação Obrigatória**: Todo arquivo físico salvo no disco DEVE ser obrigatoriamente renomeado para um identificador único seguro (ex: `media_<uuid>.webp`), evitando colisão de nomes ou exposição de nomes de arquivo originais.
-   - **Conversão WebP**: Todo arquivo de imagem recebido é automaticamente convertido para o formato `.webp`.
-   - **Remoção de Metadados (EXIF)**: Remover todos os metadados sensíveis ou desnecessários da imagem (ex: localização GPS, modelo de câmera).
-   - **Redimensionamento**: Imagens com largura superior a **1920px** devem ser redimensionadas mantendo a proporção original.
-   - **Compressão**: Aplicar compressão eficiente sem perda perceptível de qualidade (qualidade padrão ~80).
+   - **Renomeação Obrigatória**: Todo arquivo físico salvo no disco DEVE ser obrigatoriamente renomeado para um identificador único seguro (ex: `media_<uuid>.webp` ou `media_<uuid>.gif`), evitando colisão de nomes ou exposição de nomes de arquivo originais.
+   - **Suporte a GIF (Preservação de Animação)**: GIFs NÃO passam por conversão para WebP ou compressão destrutiva, mantendo seus quadros de animação originais intactos salvos como `media_<uuid>.gif`.
+   - **Conversão WebP para Imagens Estáticas**: Imagens estáticas (PNG, JPG, JPEG) são automaticamente convertidas para `.webp`.
+   - **Remoção de Metadados (EXIF)**: Remover metadados sensíveis de imagens estáticas.
+   - **Redimensionamento**: Imagens estáticas com largura superior a **1920px** são redimensionadas mantendo a proporção original.
 
 4. **Persistência no Banco de Dados (`Media` model)**:
    - Todo arquivo processado gera um registro no Prisma na tabela `Media` contendo:

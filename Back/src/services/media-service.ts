@@ -18,10 +18,12 @@ const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/jpg",
   "image/webp",
+  "image/gif",
 ];
-const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
+const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const MAX_STANDARD_FILE_SIZE = 25 * 1024 * 1024; // 25 MB para PNG/JPG/WEBP
+const MAX_GIF_FILE_SIZE = 50 * 1024 * 1024; // 50 MB para GIFs animadas
 
 export interface MediaUploadResult {
   id: string;
@@ -46,42 +48,75 @@ export async function processAndSaveMedia(
   mimeType: string,
   baseUrl: string = "http://localhost:3001"
 ): Promise<MediaUploadResult> {
-  // 1. Validar tamanho máximo (25MB)
-  if (fileBuffer.length > MAX_FILE_SIZE) {
-    throw new Error(`O arquivo excede o limite máximo permitido de 25MB.`);
+  const isGif = mimeType === "image/gif" || path.extname(originalName).toLowerCase() === ".gif";
+
+  // 1. Validar tamanho máximo (50MB para GIF, 25MB para padrão)
+  const limitSize = isGif ? MAX_GIF_FILE_SIZE : MAX_STANDARD_FILE_SIZE;
+  const limitMbText = isGif ? "50MB" : "25MB";
+
+  if (fileBuffer.length > limitSize) {
+    throw new Error(`O arquivo excede o limite máximo permitido de ${limitMbText}.`);
   }
 
-  // Sanitizar e garantir que o arquivo tenha extensão válida
+  // Sanitizar extensão
   let ext = path.extname(originalName).toLowerCase();
   if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
-    if (mimeType === "image/png") ext = ".png";
+    if (isGif) ext = ".gif";
+    else if (mimeType === "image/png") ext = ".png";
     else if (mimeType === "image/webp") ext = ".webp";
     else ext = ".jpg";
   }
 
   // 2. Validar MIME Type
-  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+  if (!ALLOWED_MIME_TYPES.includes(mimeType) && !isGif) {
     throw new Error(
-      `Tipo de arquivo não permitido (${mimeType}). Envie apenas imagens (PNG, JPG, JPEG, WEBP).`
+      `Tipo de arquivo não permitido (${mimeType}). Envie apenas imagens (PNG, JPG, JPEG, WEBP, GIF).`
     );
   }
 
-  // 3. Sempre renomear o arquivo no disco para um nome único e seguro
   const id = crypto.randomUUID();
-  const targetFileName = `media_${id}.webp`;
+  let targetFileName: string;
+  let finalBuffer: Buffer;
+  let finalMimeType: string;
+  let finalExtension: string;
+  let width: number | null = null;
+  let height: number | null = null;
+
+  // 3. GIFs não devem ser otimizados nem convertidos para WebP para preservar a animação
+  if (isGif) {
+    targetFileName = `media_${id}.gif`;
+    finalBuffer = fileBuffer;
+    finalMimeType = "image/gif";
+    finalExtension = ".gif";
+
+    try {
+      const metadata = await sharp(fileBuffer).metadata();
+      width = metadata.width || null;
+      height = metadata.height || null;
+    } catch {
+      // Caso ocorra falha ao extrair metadados do GIF, prosseguir mantendo o buffer intacto
+    }
+  } else {
+    // 4. Outros formatos (PNG, JPG, WEBP): Otimização com Sharp (Conversão WebP, EXIF stripping, Resize e Compressão)
+    targetFileName = `media_${id}.webp`;
+    finalMimeType = "image/webp";
+    finalExtension = ".webp";
+
+    finalBuffer = await sharp(fileBuffer)
+      .rotate() // Mantém orientação correta e remove EXIF
+      .resize({ width: 1920, withoutEnlargement: true }) // Redimensiona se for maior que 1920px
+      .webp({ quality: 80 }) // Converter para WebP com qualidade 80
+      .toBuffer();
+
+    const metadata = await sharp(finalBuffer).metadata();
+    width = metadata.width || null;
+    height = metadata.height || null;
+  }
+
   const targetFilePath = path.join(UPLOADS_DIR, targetFileName);
 
-  // 4. Processamento da Imagem com Sharp (Conversão WebP, EXIF stripping, Resize e Compressão)
-  const processedBuffer = await sharp(fileBuffer)
-    .rotate() // Mantém orientação correta e remove EXIF
-    .resize({ width: 1920, withoutEnlargement: true }) // Redimensiona se for maior que 1920px
-    .webp({ quality: 80 }) // Converter para WebP com qualidade 80
-    .toBuffer();
-
-  const metadata = await sharp(processedBuffer).metadata();
-
   // 5. Salvar arquivo físico no disco interno com nome renomeado único
-  await fs.promises.writeFile(targetFilePath, processedBuffer);
+  await fs.promises.writeFile(targetFilePath, finalBuffer);
 
   // 6. Salvar metadados no banco de dados SQLite via Prisma
   const media = await prisma.media.create({
@@ -89,11 +124,11 @@ export async function processAndSaveMedia(
       id,
       originalName: originalName || `upload_${id}${ext}`,
       fileName: targetFileName,
-      mimeType: "image/webp",
-      extension: ".webp",
-      size: processedBuffer.length,
-      width: metadata.width || null,
-      height: metadata.height || null,
+      mimeType: finalMimeType,
+      extension: finalExtension,
+      size: finalBuffer.length,
+      width,
+      height,
     },
   });
 
