@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
+import mediaRoutes from "./routes/media-routes";
+import newsRoutes from "./routes/news-routes";
 
 dotenv.config();
 
@@ -25,6 +27,8 @@ app.get("/api/health", (req, res) => {
 // Registrar Rotas da Aplicação
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/media", mediaRoutes);
+app.use("/api/news", newsRoutes);
 
 // Iniciar Servidor
 app.listen(PORT, () => {

@@ -23,6 +23,8 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  news      News[]
+
   @@map("users")
 }
 
@@ -33,4 +35,37 @@ model SystemLog {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("system_logs")
+}
+
+model Media {
+  id           String   @id @default(uuid())
+  originalName String   @map("original_name")
+  fileName     String   @map("file_name")
+  mimeType     String   @map("mime_type")
+  extension    String
+  size         Int
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  newsCovers   News[]
+
+  @@map("media")
+}
+
+model News {
+  id           String   @id @default(uuid())
+  title        String
+  slug         String   @unique
+  content      String
+  summary      String?
+  coverImageId String?  @map("cover_image_id")
+  coverImage   Media?   @relation(fields: [coverImageId], references: [id], onDelete: SetNull)
+  authorId     String   @map("author_id")
+  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("news")
 }
