@@ -27,6 +27,11 @@ Cada agente possui um arquivo de diretriz detalhado armazenado na pasta `agents/
    - **Middlewares**: Autenticação com `ensureAuthenticated` e controle de acesso com `ensureRole([ADMIN, EDITOR, USER])`.
    - **Persistência**: Upsert no SQLite via Prisma Client e gerenciamento de sessão/cache.
 
+5. 🖼️ **[Agente 5: Gerenciamento de Mídias e Imagens](agents/media-agent.md)**
+   - **Upload & Processamento**: Validação de MIME/extensão, conversão automática para WebP via `sharp`, compressão, redimensionamento e remoção de EXIF.
+   - **Disponibilização**: Endpoint `GET /api/media/:id` preservando sigilo do sistema de arquivos interno (`uploads/`).
+   - **Manutenção**: Deleção com remoção física e higienização de arquivos órfãos.
+
 ---
 
 ## 🚀 Visão Geral do Repositório
@@ -40,7 +45,8 @@ TCC SU/
 │   ├── git-commit-agent.md
 │   ├── database-agent.md
 │   ├── backend-routes-agent.md
-│   └── auth-agent.md
+│   ├── auth-agent.md
+│   └── media-agent.md
 ├── Front/                     # Aplicação Frontend (Next.js, TypeScript, Tailwind CSS, shadcn/ui, Axios)
 └── Back/                      # Aplicação Backend (Node.js, Express, Prisma ORM, SQLite, node-cache)
 ```

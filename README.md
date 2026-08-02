@@ -54,10 +54,12 @@ TCC SU/
 ├── assets/                    # Banners, logos e mídias de documentação
 │   └── tcc_su_header.jpg
 ├── AGENTS.md                  # Mapa central e regras para Agentes de IA
-├── agents/                    # Diretrizes operacionais por agente (Git, DB, API)
+├── agents/                    # Diretrizes operacionais por agente (Git, DB, API, Auth, Mídia)
 │   ├── git-commit-agent.md
 │   ├── database-agent.md
-│   └── backend-routes-agent.md
+│   ├── backend-routes-agent.md
+│   ├── auth-agent.md
+│   └── media-agent.md
 ├── Front/                     # Aplicação Frontend (Next.js)
 └── Back/                      # Aplicação Backend (Express + Prisma)
 ```
