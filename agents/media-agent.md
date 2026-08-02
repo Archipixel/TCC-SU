@@ -13,10 +13,12 @@ Este documento define as regras obrigatórias, fluxo de processamento, regras de
 2. **Segurança e Validação de Upload**:
    - Aceitar apenas os formatos de imagem permitidos: **PNG, JPG, JPEG e WEBP**.
    - Validar rigorosamente a extensão do arquivo e o **MIME Type** (`image/png`, `image/jpeg`, `image/jpg`, `image/webp`).
-   - Limitar o tamanho máximo de upload (padrão: **5 MB**). Rejeitar imediatamente arquivos maiores ou maliciosos.
+   - Limitar o tamanho máximo de upload para **25 MB**. Rejeitar imediatamente arquivos maiores ou maliciosos.
+   - **Suporte a Base64**: O sistema suporta uploads tanto por `multipart/form-data` quanto por strings de dados em Base64 (`data:image/png;base64,...`).
 
-3. **Processamento e Otimização Automática (`sharp`)**:
-   - **Conversão WebP**: Todo arquivo de imagem recebido deve ser automaticamente convertido para o formato `.webp`.
+3. **Processamento, Renomeação e Otimização Automática (`sharp`)**:
+   - **Renomeação Obrigatória**: Todo arquivo físico salvo no disco DEVE ser obrigatoriamente renomeado para um identificador único seguro (ex: `media_<uuid>.webp`), evitando colisão de nomes ou exposição de nomes de arquivo originais.
+   - **Conversão WebP**: Todo arquivo de imagem recebido é automaticamente convertido para o formato `.webp`.
    - **Remoção de Metadados (EXIF)**: Remover todos os metadados sensíveis ou desnecessários da imagem (ex: localização GPS, modelo de câmera).
    - **Redimensionamento**: Imagens com largura superior a **1920px** devem ser redimensionadas mantendo a proporção original.
    - **Compressão**: Aplicar compressão eficiente sem perda perceptível de qualidade (qualidade padrão ~80).
@@ -25,7 +27,7 @@ Este documento define as regras obrigatórias, fluxo de processamento, regras de
    - Todo arquivo processado gera um registro no Prisma na tabela `Media` contendo:
      - `id` (UUID único)
      - `originalName` (nome original enviado)
-     - `fileName` (nome final gerado no disco, ex: `uuid.webp`)
+     - `fileName` (nome final renomeado gerado no disco, ex: `media_<uuid>.webp`)
      - `mimeType` (`image/webp`)
      - `extension` (`.webp`)
      - `size` (tamanho final em bytes)

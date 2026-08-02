@@ -3,6 +3,7 @@ import fs from "fs";
 import { z } from "zod";
 import {
   processAndSaveMedia,
+  processAndSaveBase64Media,
   getMediaById,
   getMediaFilePath,
   listMedia,
@@ -17,31 +18,46 @@ function getBaseUrl(req: Request): string {
 }
 
 /**
- * Handle multipart image upload
+ * Handle multipart or base64 image upload
  * POST /api/media
  */
 export async function handleUploadMedia(req: Request, res: Response) {
   try {
-    if (!req.file) {
+    const baseUrl = getBaseUrl(req);
+    let media;
+
+    // 1. Caso seja enviado arquivo via Multipart Form-Data
+    if (req.file) {
+      media = await processAndSaveMedia(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        baseUrl
+      );
+    }
+    // 2. Caso seja enviado via JSON Payload Base64 (ex: { base64: "data:image/png;base64,...", originalName: "..." })
+    else if (req.body && (req.body.base64 || req.body.image)) {
+      const base64Data = req.body.base64 || req.body.image;
+      const originalName = req.body.originalName || req.body.fileName || "upload_base64.png";
+
+      media = await processAndSaveBase64Media(
+        base64Data,
+        originalName,
+        baseUrl
+      );
+    } else {
       return res.status(400).json({
         error: true,
-        message: "Nenhum arquivo enviado. Envie um arquivo com o campo 'file'.",
+        message:
+          "Nenhum arquivo ou imagem Base64 enviado. Envie um arquivo multipart no campo 'file' ou JSON com o campo 'base64'.",
       });
     }
 
-    const baseUrl = getBaseUrl(req);
-    const media = await processAndSaveMedia(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      baseUrl
-    );
-
-    // Retorna exatamente a estrutura solicitada no requisito do projeto
     return res.status(201).json({
       id: media.id,
       url: media.url,
       originalName: media.originalName,
+      fileName: media.fileName,
       mimeType: media.mimeType,
       extension: media.extension,
       size: media.size,

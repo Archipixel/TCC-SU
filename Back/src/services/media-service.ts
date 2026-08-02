@@ -21,7 +21,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 
 export interface MediaUploadResult {
   id: string;
@@ -38,7 +38,7 @@ export interface MediaUploadResult {
 }
 
 /**
- * Processa e armazena uma imagem enviada
+ * Processa e armazena uma imagem enviada via Buffer (Multipart)
  */
 export async function processAndSaveMedia(
   fileBuffer: Buffer,
@@ -46,25 +46,29 @@ export async function processAndSaveMedia(
   mimeType: string,
   baseUrl: string = "http://localhost:3001"
 ): Promise<MediaUploadResult> {
-  // 1. Validar tamanho máximo
+  // 1. Validar tamanho máximo (25MB)
   if (fileBuffer.length > MAX_FILE_SIZE) {
-    throw new Error(`O arquivo excede o limite máximo permitido de 5MB.`);
+    throw new Error(`O arquivo excede o limite máximo permitido de 25MB.`);
   }
 
-  // 2. Validar MIME Type e Extensão
-  const ext = path.extname(originalName).toLowerCase();
-  if (
-    !ALLOWED_MIME_TYPES.includes(mimeType) ||
-    !ALLOWED_EXTENSIONS.includes(ext)
-  ) {
+  // Sanitizar e garantir que o arquivo tenha extensão válida
+  let ext = path.extname(originalName).toLowerCase();
+  if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+    if (mimeType === "image/png") ext = ".png";
+    else if (mimeType === "image/webp") ext = ".webp";
+    else ext = ".jpg";
+  }
+
+  // 2. Validar MIME Type
+  if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
     throw new Error(
-      `Tipo de arquivo não permitido. Envie apenas imagens (PNG, JPG, JPEG, WEBP).`
+      `Tipo de arquivo não permitido (${mimeType}). Envie apenas imagens (PNG, JPG, JPEG, WEBP).`
     );
   }
 
-  // 3. Gerar ID único
+  // 3. Sempre renomear o arquivo no disco para um nome único e seguro
   const id = crypto.randomUUID();
-  const targetFileName = `${id}.webp`;
+  const targetFileName = `media_${id}.webp`;
   const targetFilePath = path.join(UPLOADS_DIR, targetFileName);
 
   // 4. Processamento da Imagem com Sharp (Conversão WebP, EXIF stripping, Resize e Compressão)
@@ -76,14 +80,14 @@ export async function processAndSaveMedia(
 
   const metadata = await sharp(processedBuffer).metadata();
 
-  // 5. Salvar arquivo físico no disco interno
+  // 5. Salvar arquivo físico no disco interno com nome renomeado único
   await fs.promises.writeFile(targetFilePath, processedBuffer);
 
   // 6. Salvar metadados no banco de dados SQLite via Prisma
   const media = await prisma.media.create({
     data: {
       id,
-      originalName,
+      originalName: originalName || `upload_${id}${ext}`,
       fileName: targetFileName,
       mimeType: "image/webp",
       extension: ".webp",
@@ -95,16 +99,45 @@ export async function processAndSaveMedia(
 
   const mediaUrl = `${baseUrl}/api/media/${id}`;
 
-  // 7. Atualizar cache
   const result: MediaUploadResult = {
     ...media,
     url: mediaUrl,
   };
 
-  appCache.set(`media:${id}`, result, 3600); // 1 hora de cache
+  appCache.set(`media:${id}`, result, 3600);
   appCache.del("media:list:all");
 
   return result;
+}
+
+/**
+ * Processa e armazena uma imagem enviada no formato Base64 (data:image/png;base64,...)
+ */
+export async function processAndSaveBase64Media(
+  base64Input: string,
+  originalName: string = "image_upload.png",
+  baseUrl: string = "http://localhost:3001"
+): Promise<MediaUploadResult> {
+  if (!base64Input || typeof base64Input !== "string") {
+    throw new Error("String de imagem Base64 inválida ou vazia.");
+  }
+
+  let mimeType = "image/png";
+  let base64Data = base64Input;
+
+  // Extrair o cabeçalho data:image/...;base64, caso esteja presente
+  const matches = base64Input.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+  if (matches && matches.length === 3) {
+    mimeType = matches[1].toLowerCase();
+    base64Data = matches[2];
+  }
+
+  const fileBuffer = Buffer.from(base64Data, "base64");
+  if (fileBuffer.length === 0) {
+    throw new Error("Falha ao decodificar a imagem Base64.");
+  }
+
+  return processAndSaveMedia(fileBuffer, originalName, mimeType, baseUrl);
 }
 
 /**
