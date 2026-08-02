@@ -22,7 +22,7 @@ model News{
   id Int @id @default(autoincrement())
   title String @unique
   excerpt String?
-  content String @db.Text
+  content String 
   coverImage String?
   status String @default("RASCUNHO")
   publishedAt DateTime?
