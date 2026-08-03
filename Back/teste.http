@@ -1,0 +1,79 @@
+HTTP
+POST http://localhost:3001/api/users
+Content-Type: application/json
+
+{
+  "name": "Seu Nome",
+  "email": "seuemail@exemplo.com",
+  "password": "senha123_aqui"
+}
+###
+
+POST http://localhost:3001/criar_noticia
+Content-Type: application/json
+
+{
+  "title": "Notícia de Teste do V.I.A",
+  "slug": "noticia-teste-via",
+  "excerpt": "Resumo de teste",
+  "content": "Conteúdo de teste da notícia",
+  "coverImage": "https://exemplo.com/foto.jpg",
+  "authorId": "e4a5d3f2-1234-4b56-8a90-9f8e7d6c5b4a"
+}
+### 2. Editar Notícia
+POST http://localhost:3001/editar_noticia
+Content-Type: application/json
+
+{
+  "idDaNoticia": 1,
+  "title": "Notícia de Teste Editada",
+  "excerpt": "Resumo atualizado.",
+  "content": "Conteúdo editado com novos detalhes.",
+  "coverImage": "https://picsum.photos/800/400",
+  "authorId": 1
+}
+
+### 3. Excluir Notícia
+DELETE http://localhost:3001/excluir_noticia
+Content-Type: application/json
+
+{
+  "idDaNoticia": 1
+}
+
+### 4. Buscar Notícia por Slug
+GET http://localhost:3001/noticia/noticia-teste-via
+
+### 5. Listar Todas as Notícias
+GET http://localhost:3001/listar_noticias
+
+### 6. Listar Notícias Publicadas (Padrão)
+GET http://localhost:3001/listar_noticias_publicadas
+
+### 7. Listar Notícias Publicadas com Paginação
+GET http://localhost:3001/listar_noticias_publicadas?page=1&limit=5
+
+
+
+### 1. Teste de Busca: Pesquisando por um termo específico
+GET http://localhost:3001/pesquisa?pesquisa=teste
+Content-Type: application/json
+
+###
+
+### 2. Teste de Busca: Pesquisando por outro termo (ex: tecnologia)
+GET http://localhost:3001/pesquisa?pesquisa=tecnologia
+Content-Type: application/json
+
+###
+
+### 3. Teste de Busca Vazia: Sem o parâmetro 'pesquisa' (Deve retornar [])
+GET http://localhost:3001/pesquisa
+Content-Type: application/json
+
+###
+
+### 4. Teste de Busca Vazia: Parâmetro com string vazia (Deve retornar [])
+GET http://localhost:3001/pesquisa?pesquisa=
+Content-Type: application/json
+
