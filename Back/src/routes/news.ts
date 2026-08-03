@@ -29,10 +29,10 @@ router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.
 router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), async (req, res)=>{
   try {
     const {title, content, coverImage, authorId, idDaNoticia} = req.body;
-    const idNoticia = Number(idDaNoticia)
+    const idNoticia = Number(idDaNoticia) || idDaNoticia;
     const novaNoticia = await prisma.news.update({
       where: {
-          id: idNoticia
+          id: idNoticia as any
       },
       data:{
       title,
@@ -52,10 +52,10 @@ router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.
 router.delete("/excluir_noticia", ensureAuthenticated, ensureRole([Role.ADMIN]), async (req, res)=>{
   try {
     const {idDaNoticia} = req.body;
-    const idNoticia = Number(idDaNoticia)
+    const idNoticia = Number(idDaNoticia) || idDaNoticia;
     const novaNoticia = await prisma.news.delete({
       where: {
-          id: idNoticia
+          id: idNoticia as any
       }
     });
     return res.status(200).json(novaNoticia);
@@ -224,7 +224,7 @@ router.get("/listar_noticias_publicadas", async(req,res)=>{
       const [noticias, totalNoticias] = await Promise.all([
         prisma.news.findMany({
           where,
-          orderBy: { publishedAt: "desc" },
+          orderBy: { publishedAt: "desc" } as any,
           skip,
           take: limitNum,
         }),
@@ -250,7 +250,7 @@ router.get("/listar_noticias_publicadas", async(req,res)=>{
       where,
       orderBy: {
         publishedAt: "desc", 
-      }
+      } as any
     })
     if (noticias.length === 0){
       return res.status(404).json({ error: "Notícia não encontrada." });
@@ -282,7 +282,7 @@ router.get("/paginacao", async (req, res) => {
         where,
         orderBy: {
           publishedAt: "desc",
-        },
+        } as any,
         skip: skip,
         take: limit,
       }),
