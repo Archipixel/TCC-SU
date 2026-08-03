@@ -14,34 +14,30 @@ const router = Router();
 function buildNewsFilter(query: any, onlyPublished = false) {
   const where: any = {};
 
-  // 1. Filtro de publicação (se a rota exigir ou se for o padrão)
-  if (onlyPublished) {
-    where.publishedAt = {
-      lte: new Date(),
-      not: null,
-    };
-  }
+  // 1. Processa o filtro por STATUS enviado na query
+  if (query.status) {
+    const normalizedStatus = String(query.status).toUpperCase();
+    const validStatuses = ["DRAFT", "PUBLISHED", "ARCHIVED"];
 
-  // 2. FILTRO POR STATUS (?status=true|false ou valores legados)
-  if (query.status !== undefined && query.status !== null && query.status !== "") {
-    if (typeof query.status === "boolean") {
-      where.status = query.status;
-    } else if (String(query.status).toLowerCase() === "true") {
-      where.status = true;
-    } else if (String(query.status).toLowerCase() === "false") {
-      where.status = false;
-    } else {
-      where.status = query.status;
+    if (validStatuses.includes(normalizedStatus)) {
+      where.status = normalizedStatus;
     }
   }
 
-  // 3. FILTRO POR AUTOR (?authorId=XYZ, ?author=XYZ ou ?author_id=XYZ)
+  // 2. Regra para rotas de publicadas
+  if (onlyPublished && !query.status) {
+    // Se a rota for de publicadas e o cliente não especificou status manualmente,
+    // busca todas que estão com o enum PUBLISHED.
+    where.status = "PUBLISHED";
+  }
+
+  // 3. FILTRO POR AUTOR
   const authorId = query.authorId || query.author || query.author_id;
   if (authorId) {
     where.authorId = String(authorId);
   }
 
-  // 4. PESQUISA POR TERMO (?pesquisa=termo, ?search=termo ou ?q=termo)
+  // 4. PESQUISA POR TERMO
   const termo = query.pesquisa || query.search || query.q;
   if (termo && typeof termo === "string" && termo.trim() !== "") {
     const cleanTerm = termo.trim();
@@ -53,7 +49,6 @@ function buildNewsFilter(query: any, onlyPublished = false) {
 
   return where;
 }
-
 // ============================================================================
 // HELPER DE CONSULTA E PAGINAÇÃO
 // Centraliza a execução do Prisma para evitar repetição de lógica
@@ -145,6 +140,20 @@ const handleUpdateNews = async (req: Request, res: Response) => {
 
     const { title, content, coverImage, authorId, slug, status, publishedAt } = req.body;
 
+    // Normaliza o status enviado se existir
+    const normalizedStatus = status ? String(status).toUpperCase() : undefined;
+
+    // Lógica para tratar o publishedAt:
+    // 1. Se foi passado explicitamente no body, usa o valor passado
+    // 2. Se o status mudou para PUBLISHED e publishedAt não veio, define como a data/hora atual
+    let finalPublishedAt: Date | null | undefined = undefined;
+
+    if (publishedAt !== undefined) {
+      finalPublishedAt = publishedAt ? new Date(publishedAt) : null;
+    } else if (normalizedStatus === "PUBLISHED") {
+      finalPublishedAt = new Date();
+    }
+
     const noticiaAtualizada = await prisma.news.update({
       where: { id: idNoticia },
       data: {
@@ -153,8 +162,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
         ...(content !== undefined && { content }),
         ...(coverImage !== undefined && { coverImage }),
         ...(authorId !== undefined && { authorId: String(authorId) }),
-        ...(status !== undefined && { status }),
-        ...(publishedAt !== undefined && { publishedAt: publishedAt ? new Date(publishedAt) : null }),
+        ...(normalizedStatus !== undefined && { status: normalizedStatus as any }),
+        ...(finalPublishedAt !== undefined && { publishedAt: finalPublishedAt }),
       },
     });
 
@@ -195,7 +204,7 @@ const handleDeleteNews = async (req: Request, res: Response) => {
 };
 
 router.delete("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
-router.delete("/excluir_noticia", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
+router.delete("/excluir_noticia/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
 
 // ============================================================================
 // BUSCAR NOTÍCIA PELO SLUG (GET /noticias/slug/:slug e GET /noticia/:slug)
