@@ -47,6 +47,29 @@ O backend segue a separação em camadas:
 
 ---
 
+## 🛡️ Middlewares no Express (`src/middlewares/`)
+
+Middlewares são funções intermediárias executadas na fila do Express **antes** que a requisição chegue ao Controller final.
+
+```text
+Requisição HTTP ──► [ Middleware 1: Autenticação ] ──► [ Middleware 2: Autorização ] ──► [ Controller ] ──► Resposta JSON
+```
+
+### 1. `ensureAuthenticated` (`src/middlewares/auth-middleware.ts`)
+- **Objetivo**: Validar se o cliente enviou um token JWT válido no cabeçalho `Authorization: Bearer <token>`.
+- **Comportamento**:
+  - Se o token for válido e não expirado, injeta o payload em `req.user` e chama `next()`.
+  - Se ausente ou inválido, interrompe a requisição com status `401 Unauthorized`.
+
+### 2. `ensureRole` (`src/middlewares/role-middleware.ts`)
+- **Objetivo**: Verificar se o usuário autenticado (`req.user`) possui o nível de permissão (cargo) necessário para acessar a rota.
+- **Comportamento**:
+  - Recebe um array de cargos permitidos: `ensureRole([Role.ADMIN, Role.EDITOR])`.
+  - Se `req.user.role` estiver no array, chama `next()`.
+  - Se o cargo for insuficiente (ex: um `USER` tentando deletar um recurso de `ADMIN`), interrompe com status `403 Forbidden`.
+
+---
+
 ## 🛠️ Exemplo Prático de Implementação
 
 ### 1. Controller Exemplo (`src/controllers/user-controller.ts`)

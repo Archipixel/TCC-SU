@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { appCache } from "../lib/cache";
+import { Role } from "@prisma/client";
 
 const USERS_CACHE_KEY = "all_users_list";
 
@@ -17,12 +18,13 @@ export async function getUsers() {
   return { data: users, fromCache: false };
 }
 
-export async function createUser(data: { name: string; email: string; role?: string }) {
+export async function createUser(data: { name: string; email: string; googleId?: string; role?: Role }) {
   const newUser = await prisma.user.create({
     data: {
       name: data.name,
       email: data.email,
-      role: data.role || "user",
+      googleId: data.googleId || `manual_${Date.now()}`,
+      role: data.role || Role.USER,
     },
   });
 
