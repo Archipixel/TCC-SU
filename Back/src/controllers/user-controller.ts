@@ -1,11 +1,12 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { getUsers, createUser } from "../services/user-service";
+import { Role } from "@prisma/client";
 
 const createUserSchema = z.object({
   name: z.string().min(2, "Nome deve possuir ao menos 2 caracteres"),
   email: z.string().email("Endereço de e-mail inválido"),
-  role: z.string().optional(),
+  role: z.nativeEnum(Role).optional(),
 });
 
 export async function handleGetUsers(req: Request, res: Response) {

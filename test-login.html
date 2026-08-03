@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TCC SU - Debugger de Autenticação Google OAuth</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 850px;
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .card h3 {
+      font-size: 1.1rem;
+      color: #e2e8f0;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 0.4rem;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #f8fafc;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #0369a1;
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-badge.logged-out {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .status-badge.logged-in {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #0f172a;
+      border-radius: 8px;
+    }
+
+    .user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #38bdf8;
+    }
+
+    .user-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .user-info .name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #f8fafc;
+    }
+
+    .user-info .email {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .user-info .role {
+      display: inline-block;
+      margin-top: 0.25rem;
+      padding: 0.1rem 0.5rem;
+      background: #38bdf8;
+      color: #0f172a;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .response-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 1rem;
+      max-height: 280px;
+      overflow-y: auto;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    #g_id_onload, .g_id_signin {
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>🧩 TCC SU - Debugger Google OAuth</h1>
+      <p>Página de teste independente para validar Login, Registro e Endpoints do Backend</p>
+    </div>
+
+    <div class="grid">
+      <!-- Coluna da Esquerda: Controles -->
+      <div class="card">
+        <h3>🔐 Autenticação Google</h3>
+        
+        <div class="form-group">
+          <label for="googleClientId">Google Client ID (Configuração)</label>
+          <input type="text" id="googleClientId" value="407408718192-apps.googleusercontent.com" placeholder="Cole seu Client ID aqui...">
+        </div>
+
+        <button class="btn btn-primary" onclick="initGoogleAuth()">⚡ Carregar Botão do Google</button>
+
+        <div style="margin: 1rem 0; text-align: center;">
+          <div id="googleBtnContainer"></div>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 1rem 0;">
+
+        <h3>🧪 Teste Manual de Token</h3>
+        <div class="form-group">
+          <label for="manualToken">Cole o idToken (Google OAuth Playground)</label>
+          <input type="text" id="manualToken" placeholder="eyJhbGciOiJSUzI1NiIs...">
+        </div>
+        <button class="btn btn-primary" onclick="testManualToken()">🚀 Testar idToken com Backend</button>
+
+        <hr style="border: 0; border-top: 1px solid #334155; margin: 1rem 0;">
+
+        <h3>📡 Rotas Protegidas API</h3>
+        <button class="btn btn-success" onclick="testMeEndpoint()">👤 Testar GET /api/auth/me</button>
+        <button class="btn btn-danger" onclick="testLogoutEndpoint()">🚪 Testar POST /api/auth/logout</button>
+      </div>
+
+      <!-- Coluna da Direita: Status & Resposta JSON -->
+      <div class="card">
+        <h3>
+          📊 Estado da Sessão: 
+          <span id="sessionStatus" class="status-badge logged-out">Desconectado</span>
+        </h3>
+
+        <div id="userProfileCard" style="display: none;">
+          <div class="user-profile">
+            <img id="userAvatar" class="user-avatar" src="" alt="Avatar">
+            <div class="user-info">
+              <div id="userName" class="name">--</div>
+              <div id="userEmail" class="email">--</div>
+              <span id="userRole" class="role">USER</span>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin-top: 1.5rem;">📄 Resposta JSON da API:</h3>
+        <div id="jsonResponse" class="response-box">// Nenhuma requisição enviada ainda...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE_URL = 'http://localhost:3001/api/auth';
+    let currentJwtToken = localStorage.getItem('tcc_jwt_token') || '';
+
+    // Inicialização ao carregar a página
+    window.addEventListener('DOMContentLoaded', () => {
+      if (currentJwtToken) {
+        updateSessionUI(true);
+        testMeEndpoint();
+      }
+    });
+
+    // Inicializa o Botão Oficial do Google
+    function initGoogleAuth() {
+      const clientId = document.getElementById('googleClientId').value.trim();
+      if (!clientId) {
+        alert('Por favor, informe um Google Client ID válido.');
+        return;
+      }
+
+      if (typeof google === 'undefined') {
+        alert('Script do Google ainda está carregando. Tente novamente em alguns segundos.');
+        return;
+      }
+
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleCredentialResponse
+      });
+
+      const container = document.getElementById('googleBtnContainer');
+      container.innerHTML = '';
+      google.accounts.id.renderButton(container, {
+        theme: 'filled_blue',
+        size: 'large',
+        width: '100%',
+        text: 'continue_with'
+      });
+
+      logResponse({ message: 'Botão do Google inicializado com sucesso!' });
+    }
+
+    // Callback executado quando o usuário faz login pelo Botão do Google
+    async function handleGoogleCredentialResponse(response) {
+      logResponse({ message: 'idToken recebido do Google!', idToken: response.credential });
+      await authenticateWithBackend(response.credential);
+    }
+
+    // Teste com idToken colado manualmente
+    async function testManualToken() {
+      const token = document.getElementById('manualToken').value.trim();
+      if (!token) {
+        alert('Cole um idToken no campo antes de enviar.');
+        return;
+      }
+      await authenticateWithBackend(token);
+    }
+
+    // Envia o idToken para o Backend (POST /api/auth/google)
+    async function authenticateWithBackend(idToken) {
+      logResponse({ status: 'Enviando idToken para POST /api/auth/google...' });
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/google`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        });
+
+        const data = await res.json();
+        logResponse(data);
+
+        if (res.ok && data.success && data.data?.token) {
+          currentJwtToken = data.data.token;
+          localStorage.setItem('tcc_jwt_token', currentJwtToken);
+          renderUserProfile(data.data.user);
+          updateSessionUI(true);
+        } else {
+          updateSessionUI(false);
+        }
+      } catch (err) {
+        logResponse({ error: true, message: 'Erro na conexão com o servidor', details: err.message });
+        updateSessionUI(false);
+      }
+    }
+
+    // Testa GET /api/auth/me
+    async function testMeEndpoint() {
+      if (!currentJwtToken) {
+        alert('Você não possui um JWT salvo. Faça login primeiro.');
+        return;
+      }
+
+      logResponse({ status: 'Buscando perfil em GET /api/auth/me...' });
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${currentJwtToken}`
+          }
+        });
+
+        const data = await res.json();
+        logResponse(data);
+
+        if (res.ok && data.success && data.data) {
+          renderUserProfile(data.data);
+          updateSessionUI(true);
+        } else {
+          updateSessionUI(false);
+        }
+      } catch (err) {
+        logResponse({ error: true, message: 'Erro ao conectar na rota /me', details: err.message });
+      }
+    }
+
+    // Testa POST /api/auth/logout
+    async function testLogoutEndpoint() {
+      if (!currentJwtToken) {
+        alert('Nenhum usuário logado no momento.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentJwtToken}`
+          }
+        });
+
+        const data = await res.json();
+        logResponse(data);
+
+        currentJwtToken = '';
+        localStorage.removeItem('tcc_jwt_token');
+        updateSessionUI(false);
+      } catch (err) {
+        logResponse({ error: true, message: 'Erro ao chamar /logout', details: err.message });
+      }
+    }
+
+    // Funções utilitárias de UI
+    function logResponse(jsonObj) {
+      document.getElementById('jsonResponse').textContent = JSON.stringify(jsonObj, null, 2);
+    }
+
+    function renderUserProfile(user) {
+      document.getElementById('userProfileCard').style.display = 'block';
+      document.getElementById('userName').textContent = user.name || 'Sem nome';
+      document.getElementById('userEmail').textContent = user.email || 'Sem e-mail';
+      document.getElementById('userRole').textContent = user.role || 'USER';
+      document.getElementById('userAvatar').src = user.avatar || 'https://via.placeholder.com/48?text=User';
+    }
+
+    function updateSessionUI(isLoggedIn) {
+      const badge = document.getElementById('sessionStatus');
+      if (isLoggedIn) {
+        badge.textContent = 'Conectado (JWT Ativo)';
+        badge.className = 'status-badge logged-in';
+      } else {
+        badge.textContent = 'Desconectado';
+        badge.className = 'status-badge logged-out';
+        document.getElementById('userProfileCard').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
