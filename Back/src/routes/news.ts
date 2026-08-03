@@ -1,7 +1,64 @@
-import router from "./user-routes";
+import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma";
+import { ensureAuthenticated } from "../middlewares/auth-middleware";
+import { ensureRole } from "../middlewares/role-middleware";
+import { Role } from "@prisma/client";
 
-router.post("/noticias", async (req, res) => {
+const router = Router();
+
+// ============================================================================
+// FUNÇÃO AUXILIAR: buildNewsFilter
+// Objetivo: Construir dinamicamente a cláusula "where" do Prisma com base nos
+// parâmetros enviados na URL (query params), unificando os filtros exigidos:
+// 1. Filtro por Status (?status=true ou ?status=false)
+// 2. Filtro por Autor (?authorId=XYZ ou ?author=XYZ)
+// 3. Pesquisa por termo no Título ou Conteúdo (?pesquisa=termo ou ?search=termo)
+// 4. Filtro de Notícias Publicadas (publishedAt <= data atual)
+// ============================================================================
+function buildNewsFilter(query: any, onlyPublished = false) {
+  const where: any = {};
+
+  // Se a rota exigir apenas notícias publicadas, filtra por data limite (<= agora)
+  if (onlyPublished) {
+    where.publishedAt = {
+      lte: new Date(),
+      not: null,
+    };
+  }
+
+  // 1. FILTRO POR STATUS (?status=true ou ?status=false)
+  if (query.status !== undefined && query.status !== null && query.status !== "") {
+    if (typeof query.status === "boolean") {
+      where.status = query.status;
+    } else if (String(query.status).toLowerCase() === "true") {
+      where.status = true;
+    } else if (String(query.status).toLowerCase() === "false") {
+      where.status = false;
+    }
+  }
+
+  // 2. FILTRO POR AUTOR (?authorId=1 ou ?author=1)
+  const authorId = query.authorId || query.author || query.author_id;
+  if (authorId) {
+    where.authorId = String(authorId);
+  }
+
+  // 3. PESQUISA POR TERMO (?pesquisa=futebol ou ?search=tecnologia)
+  const termo = query.pesquisa || query.search;
+  if (termo && typeof termo === "string" && termo.trim() !== "") {
+    where.OR = [
+      { title: { contains: termo.trim() } },
+      { content: { contains: termo.trim() } },
+    ];
+  }
+
+  return where;
+}
+
+// ============================================================================
+// CRIAR NOTÍCIA (POST /noticias e POST /criar_noticia)
+// ============================================================================
+const handleCreateNews = async (req: Request, res: Response) => {
   try {
     const { title, content, coverImage, authorId, slug } = req.body;
 
@@ -14,7 +71,7 @@ router.post("/noticias", async (req, res) => {
         title,
         slug,
         content,
-        authorId: String(authorId),
+        authorId: authorId ? String(authorId) : (req as any).user?.id || "",
         coverImage,
       },
     });
@@ -24,24 +81,35 @@ router.post("/noticias", async (req, res) => {
     console.error("Erro ao criar notícia:", error);
     return res.status(500).json({ error: "Erro ao salvar no banco de dados." });
   }
-});
+};
 
-router.put("/noticias/:id", async (req, res) => {
+router.post("/noticias", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNews);
+router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNews);
+
+// ============================================================================
+// EDITAR NOTÍCIA (PUT /noticias/:id e PUT /editar_noticia)
+// ============================================================================
+const handleUpdateNews = async (req: Request, res: Response) => {
   try {
-    const idNoticia = Number(req.params.id);
-    const { title, content, coverImage, authorId } = req.body;
+    const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
+    const idNoticia = Number(idParam);
 
     if (isNaN(idNoticia)) {
       return res.status(400).json({ error: "ID inválido." });
     }
 
+    const { title, content, coverImage, authorId, slug, status, publishedAt } = req.body;
+
     const noticiaAtualizada = await prisma.news.update({
       where: { id: idNoticia },
       data: {
-        title,
-        content,
-        authorId: authorId ? String(authorId) : undefined,
-        coverImage,
+        ...(title !== undefined && { title }),
+        ...(slug !== undefined && { slug }),
+        ...(content !== undefined && { content }),
+        ...(coverImage !== undefined && { coverImage }),
+        ...(authorId !== undefined && { authorId: String(authorId) }),
+        ...(status !== undefined && { status }),
+        ...(publishedAt !== undefined && { publishedAt: publishedAt ? new Date(publishedAt) : null }),
       },
     });
 
@@ -50,11 +118,18 @@ router.put("/noticias/:id", async (req, res) => {
     console.error("Erro ao editar notícia:", error);
     return res.status(500).json({ error: "Erro ao atualizar no banco de dados." });
   }
-});
+};
 
-router.delete("/noticias/:id", async (req, res) => {
+router.put("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNews);
+router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNews);
+
+// ============================================================================
+// EXCLUIR NOTÍCIA (DELETE /noticias/:id e DELETE /excluir_noticia)
+// ============================================================================
+const handleDeleteNews = async (req: Request, res: Response) => {
   try {
-    const idNoticia = Number(req.params.id);
+    const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
+    const idNoticia = Number(idParam);
 
     if (isNaN(idNoticia)) {
       return res.status(400).json({ error: "ID inválido." });
@@ -69,11 +144,17 @@ router.delete("/noticias/:id", async (req, res) => {
     console.error("Erro ao excluir notícia:", error);
     return res.status(500).json({ error: "Erro ao deletar no banco de dados." });
   }
-});
+};
 
-router.get("/noticias/slug/:slug", async (req, res) => {
+router.delete("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
+router.delete("/excluir_noticia", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
+
+// ============================================================================
+// BUSCAR NOTÍCIA PELO SLUG (GET /noticias/slug/:slug e GET /noticia/:slug)
+// ============================================================================
+const handleGetNewsBySlug = async (req: Request, res: Response) => {
   try {
-    const { slug } = req.params;
+    const slug = String(req.params.slug);
     const noticia = await prisma.news.findUnique({
       where: { slug },
     });
@@ -87,134 +168,201 @@ router.get("/noticias/slug/:slug", async (req, res) => {
     console.error("Erro ao buscar notícia pelo slug:", error);
     return res.status(500).json({ error: "Erro interno no servidor." });
   }
-});
+};
 
-router.get("/noticias", async (_req, res) => {
+router.get("/noticias/slug/:slug", handleGetNewsBySlug);
+router.get("/noticia/:slug", handleGetNewsBySlug);
+
+// ============================================================================
+// LISTAR NOTÍCIAS (GET /noticias e GET /listar_noticias)
+// ============================================================================
+const handleListNews = async (req: Request, res: Response) => {
   try {
+    const where = buildNewsFilter(req.query);
+    const { page, limit } = req.query;
+
+    if (page || limit) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Number(limit) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [noticias, totalNoticias] = await Promise.all([
+        prisma.news.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limitNum,
+        }),
+        prisma.news.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalNoticias / limitNum);
+
+      return res.status(200).json({
+        data: noticias,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalItems: totalNoticias,
+          totalPages,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+        },
+      });
+    }
+
     const noticias = await prisma.news.findMany({
+      where,
       orderBy: { createdAt: "desc" },
     });
+
     return res.status(200).json(noticias);
   } catch (error) {
     console.error("Erro ao buscar notícias:", error);
     return res.status(500).json({ error: "Erro ao buscar notícias no servidor." });
   }
-});
+};
 
-router.get("/noticias/publicadas", async (_req, res) => {
+router.get("/noticias", handleListNews);
+router.get("/listar_noticias", handleListNews);
+
+// ============================================================================
+// LISTAR NOTÍCIAS PUBLICADAS (GET /noticias/publicadas e GET /listar_noticias_publicadas)
+// ============================================================================
+const handleListPublishedNews = async (req: Request, res: Response) => {
   try {
-    const noticias = await prisma.news.findMany({
-      where: {
-        publishedAt: {
-          lte: new Date(),
+    const where = buildNewsFilter(req.query, true);
+    const { page, limit } = req.query;
+
+    if (page || limit) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Number(limit) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [noticias, totalNoticias] = await Promise.all([
+        prisma.news.findMany({
+          where,
+          orderBy: { publishedAt: "desc" },
+          skip,
+          take: limitNum,
+        }),
+        prisma.news.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalNoticias / limitNum);
+
+      return res.status(200).json({
+        data: noticias,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalItems: totalNoticias,
+          totalPages,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
         },
-      },
-      orderBy: {
-        publishedAt: "desc",
-      },
+      });
+    }
+
+    const noticias = await prisma.news.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
     });
 
     return res.status(200).json(noticias);
   } catch (error) {
     console.error("Erro ao buscar notícias publicadas:", error);
-    return res.status(500).json({ error: "Erro ao buscar notícias no servidor." });
+    return res.status(500).json({ error: "Erro ao buscar notícias publicadas no servidor." });
   }
-});
+};
 
-//PAGINACAO FEITA COM IA KK
-router.get("/noticias/paginacao", async (req, res) => {
+router.get("/noticias/publicadas", handleListPublishedNews);
+router.get("/listar_noticias_publicadas", handleListPublishedNews);
+
+// ============================================================================
+// PAGINAÇÃO DEDICADA (GET /noticias/paginacao e GET /paginacao)
+// ============================================================================
+const handlePaginatedNews = async (req: Request, res: Response) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const limit = Math.max(1, Number(req.query.limit) || 10);
     const skip = (page - 1) * limit;
 
-    const { status, q } = req.query;
+    const where = buildNewsFilter(req.query, true);
 
-    // monta filtro base
-    const filtroBase: any = {
-      publishedAt: { not: null }
-    };
+    const [noticias, totalNoticias] = await Promise.all([
+      prisma.news.findMany({
+        where,
+        orderBy: { publishedAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.news.count({ where }),
+    ]);
 
-    // adiciona filtro por status se informado
-    if (status && typeof status === "string") {
-      filtroBase.status = status;
-    }
+    const totalPages = Math.ceil(totalNoticias / limit);
 
-    // adiciona busca por termo se informado
-    if (q && typeof q === "string" && q.trim() !== "") {
-      const termo = q.trim();
-      // transforma filtroBase para combinar com OR/AND
-      // se já houver status + publishedAt, usamos AND com OR interno
-      const where: any = {
-        AND: [
-          filtroBase,
-          {
-            OR: [
-              { title: { contains: termo, mode: "insensitive" } },
-              { content: { contains: termo, mode: "insensitive" } }
-            ]
-          }
-        ]
-      };
-
-      const [noticias, totalNoticias] = await Promise.all([
-        prisma.news.findMany({ where, orderBy: { publishedAt: "desc" }, skip, take: limit }),
-        prisma.news.count({ where }),
-      ]);
-
-      const totalPages = totalNoticias === 0 ? 0 : Math.ceil(totalNoticias / limit);
-      return res.status(200).json({
-        data: noticias,
-        pagination: { page, limit, totalItems: totalNoticias, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 }
-      });
-    } else {
-      // sem termo de busca — usamos filtroBase diretamente
-      const where = filtroBase;
-      const [noticias, totalNoticias] = await Promise.all([
-        prisma.news.findMany({ where, orderBy: { publishedAt: "desc" }, skip, take: limit }),
-        prisma.news.count({ where }),
-      ]);
-
-      const totalPages = totalNoticias === 0 ? 0 : Math.ceil(totalNoticias / limit);
-      return res.status(200).json({
-        data: noticias,
-        pagination: { page, limit, totalItems: totalNoticias, totalPages, hasNextPage: page < totalPages, hasPreviousPage: page > 1 }
-      });
-    }
+    return res.status(200).json({
+      data: noticias,
+      pagination: {
+        page,
+        limit,
+        totalItems: totalNoticias,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   } catch (error) {
     console.error("Erro ao listar notícias paginadas:", error);
     return res.status(500).json({ error: "Erro ao buscar notícias." });
   }
-});
+};
 
-router.get("/noticias/pesquisa", async (req, res) => {
+router.get("/noticias/paginacao", handlePaginatedNews);
+router.get("/paginacao", handlePaginatedNews);
+
+// ============================================================================
+// PESQUISA (GET /noticias/pesquisa e GET /pesquisa)
+// ============================================================================
+const handleSearchNews = async (req: Request, res: Response) => {
   try {
-    const { pesquisa } = req.query;
+    const where = buildNewsFilter(req.query);
+    const { page, limit } = req.query;
 
-    if (!pesquisa || typeof pesquisa !== "string") {
-      return res.status(200).json([]);
+    if (page || limit) {
+      const pageNum = Math.max(1, Number(page) || 1);
+      const limitNum = Math.max(1, Number(limit) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [noticias, totalNoticias] = await Promise.all([
+        prisma.news.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip,
+          take: limitNum,
+        }),
+        prisma.news.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(totalNoticias / limitNum);
+
+      return res.status(200).json({
+        data: noticias,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          totalItems: totalNoticias,
+          totalPages,
+          hasNextPage: pageNum < totalPages,
+          hasPreviousPage: pageNum > 1,
+        },
+      });
     }
 
     const noticias = await prisma.news.findMany({
-      where: {
-        OR: [
-          {
-            title: {
-              contains: pesquisa,
-              mode: "insensitive", 
-            },
-          },
-          {
-            content: {
-              contains: pesquisa,
-              mode: "insensitive",
-            },
-          },
-        ],
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where,
+      orderBy: { createdAt: "desc" },
     });
 
     return res.status(200).json(noticias);
@@ -222,6 +370,9 @@ router.get("/noticias/pesquisa", async (req, res) => {
     console.error("Erro na busca de notícias:", error);
     return res.status(500).json({ error: "Erro ao realizar busca." });
   }
-});
+};
+
+router.get("/noticias/pesquisa", handleSearchNews);
+router.get("/pesquisa", handleSearchNews);
 
 export default router;
