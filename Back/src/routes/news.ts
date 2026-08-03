@@ -8,17 +8,13 @@ const router = Router();
 
 // ============================================================================
 // FUNÇÃO AUXILIAR: buildNewsFilter
-// Objetivo: Construir dinamicamente a cláusula "where" do Prisma com base nos
-// parâmetros enviados na URL (query params), unificando os filtros exigidos:
-// 1. Filtro por Status (?status=true ou ?status=false)
-// 2. Filtro por Autor (?authorId=XYZ ou ?author=XYZ)
-// 3. Pesquisa por termo no Título ou Conteúdo (?pesquisa=termo ou ?search=termo)
-// 4. Filtro de Notícias Publicadas (publishedAt <= data atual)
+// Unifica o suporte a query params antigos (?q=termo) e novos (?pesquisa= ou ?search=),
+// além de suporte a status (boolean) e IDs de autor.
 // ============================================================================
 function buildNewsFilter(query: any, onlyPublished = false) {
   const where: any = {};
 
-  // Se a rota exigir apenas notícias publicadas, filtra por data limite (<= agora)
+  // 1. Filtro de publicação (se a rota exigir ou se for o padrão)
   if (onlyPublished) {
     where.publishedAt = {
       lte: new Date(),
@@ -26,7 +22,7 @@ function buildNewsFilter(query: any, onlyPublished = false) {
     };
   }
 
-  // 1. FILTRO POR STATUS (?status=true ou ?status=false)
+  // 2. FILTRO POR STATUS (?status=true|false ou valores legados)
   if (query.status !== undefined && query.status !== null && query.status !== "") {
     if (typeof query.status === "boolean") {
       where.status = query.status;
@@ -34,25 +30,71 @@ function buildNewsFilter(query: any, onlyPublished = false) {
       where.status = true;
     } else if (String(query.status).toLowerCase() === "false") {
       where.status = false;
+    } else {
+      where.status = query.status;
     }
   }
 
-  // 2. FILTRO POR AUTOR (?authorId=1 ou ?author=1)
+  // 3. FILTRO POR AUTOR (?authorId=XYZ, ?author=XYZ ou ?author_id=XYZ)
   const authorId = query.authorId || query.author || query.author_id;
   if (authorId) {
     where.authorId = String(authorId);
   }
 
-  // 3. PESQUISA POR TERMO (?pesquisa=futebol ou ?search=tecnologia)
-  const termo = query.pesquisa || query.search;
+  // 4. PESQUISA POR TERMO (?pesquisa=termo, ?search=termo ou ?q=termo)
+  const termo = query.pesquisa || query.search || query.q;
   if (termo && typeof termo === "string" && termo.trim() !== "") {
+    const cleanTerm = termo.trim();
     where.OR = [
-      { title: { contains: termo.trim() } },
-      { content: { contains: termo.trim() } },
+      { title: { contains: cleanTerm, mode: "insensitive" } },
+      { content: { contains: cleanTerm, mode: "insensitive" } },
     ];
   }
 
   return where;
+}
+
+// ============================================================================
+// HELPER DE CONSULTA E PAGINAÇÃO
+// Centraliza a execução do Prisma para evitar repetição de lógica
+// ============================================================================
+async function fetchNewsData(where: any, query: any, defaultSortField: "createdAt" | "publishedAt" = "createdAt") {
+  const { page, limit } = query;
+
+  if (page || limit) {
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 10)); // Limite máximo defensivo (100)
+    const skip = (pageNum - 1) * limitNum;
+
+    const [noticias, totalNoticias] = await Promise.all([
+      prisma.news.findMany({
+        where,
+        orderBy: { [defaultSortField]: "desc" },
+        skip,
+        take: limitNum,
+      }),
+      prisma.news.count({ where }),
+    ]);
+
+    const totalPages = totalNoticias === 0 ? 0 : Math.ceil(totalNoticias / limitNum);
+
+    return {
+      data: noticias,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalItems: totalNoticias,
+        totalPages,
+        hasNextPage: pageNum < totalPages,
+        hasPreviousPage: pageNum > 1,
+      },
+    };
+  }
+
+  return prisma.news.findMany({
+    where,
+    orderBy: { [defaultSortField]: "desc" },
+  });
 }
 
 // ============================================================================
@@ -92,8 +134,11 @@ router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.
 const handleUpdateNews = async (req: Request, res: Response) => {
   try {
     const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
-    const idNoticia = Number(idParam);
+    if (!idParam) {
+      return res.status(400).json({ error: "ID da notícia é obrigatório." });
+    }
 
+    const idNoticia = Number(idParam);
     if (isNaN(idNoticia)) {
       return res.status(400).json({ error: "ID inválido." });
     }
@@ -129,8 +174,11 @@ router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.
 const handleDeleteNews = async (req: Request, res: Response) => {
   try {
     const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
-    const idNoticia = Number(idParam);
+    if (!idParam) {
+      return res.status(400).json({ error: "ID da notícia é obrigatório." });
+    }
 
+    const idNoticia = Number(idParam);
     if (isNaN(idNoticia)) {
       return res.status(400).json({ error: "ID inválido." });
     }
@@ -174,49 +222,13 @@ router.get("/noticias/slug/:slug", handleGetNewsBySlug);
 router.get("/noticia/:slug", handleGetNewsBySlug);
 
 // ============================================================================
-// LISTAR NOTÍCIAS (GET /noticias e GET /listar_noticias)
+// LISTAR NOTÍCIAS GERAIS (GET /noticias e GET /listar_noticias)
 // ============================================================================
 const handleListNews = async (req: Request, res: Response) => {
   try {
     const where = buildNewsFilter(req.query);
-    const { page, limit } = req.query;
-
-    if (page || limit) {
-      const pageNum = Math.max(1, Number(page) || 1);
-      const limitNum = Math.max(1, Number(limit) || 10);
-      const skip = (pageNum - 1) * limitNum;
-
-      const [noticias, totalNoticias] = await Promise.all([
-        prisma.news.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limitNum,
-        }),
-        prisma.news.count({ where }),
-      ]);
-
-      const totalPages = Math.ceil(totalNoticias / limitNum);
-
-      return res.status(200).json({
-        data: noticias,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          totalItems: totalNoticias,
-          totalPages,
-          hasNextPage: pageNum < totalPages,
-          hasPreviousPage: pageNum > 1,
-        },
-      });
-    }
-
-    const noticias = await prisma.news.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.status(200).json(noticias);
+    const result = await fetchNewsData(where, req.query, "createdAt");
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Erro ao buscar notícias:", error);
     return res.status(500).json({ error: "Erro ao buscar notícias no servidor." });
@@ -232,44 +244,8 @@ router.get("/listar_noticias", handleListNews);
 const handleListPublishedNews = async (req: Request, res: Response) => {
   try {
     const where = buildNewsFilter(req.query, true);
-    const { page, limit } = req.query;
-
-    if (page || limit) {
-      const pageNum = Math.max(1, Number(page) || 1);
-      const limitNum = Math.max(1, Number(limit) || 10);
-      const skip = (pageNum - 1) * limitNum;
-
-      const [noticias, totalNoticias] = await Promise.all([
-        prisma.news.findMany({
-          where,
-          orderBy: { publishedAt: "desc" },
-          skip,
-          take: limitNum,
-        }),
-        prisma.news.count({ where }),
-      ]);
-
-      const totalPages = Math.ceil(totalNoticias / limitNum);
-
-      return res.status(200).json({
-        data: noticias,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          totalItems: totalNoticias,
-          totalPages,
-          hasNextPage: pageNum < totalPages,
-          hasPreviousPage: pageNum > 1,
-        },
-      });
-    }
-
-    const noticias = await prisma.news.findMany({
-      where,
-      orderBy: { publishedAt: "desc" },
-    });
-
-    return res.status(200).json(noticias);
+    const result = await fetchNewsData(where, req.query, "publishedAt");
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Erro ao buscar notícias publicadas:", error);
     return res.status(500).json({ error: "Erro ao buscar notícias publicadas no servidor." });
@@ -284,35 +260,14 @@ router.get("/listar_noticias_publicadas", handleListPublishedNews);
 // ============================================================================
 const handlePaginatedNews = async (req: Request, res: Response) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.max(1, Number(req.query.limit) || 10);
-    const skip = (page - 1) * limit;
-
-    const where = buildNewsFilter(req.query, true);
-
-    const [noticias, totalNoticias] = await Promise.all([
-      prisma.news.findMany({
-        where,
-        orderBy: { publishedAt: "desc" },
-        skip,
-        take: limit,
-      }),
-      prisma.news.count({ where }),
-    ]);
-
-    const totalPages = Math.ceil(totalNoticias / limit);
-
-    return res.status(200).json({
-      data: noticias,
-      pagination: {
-        page,
-        limit,
-        totalItems: totalNoticias,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-      },
-    });
+    const query = {
+      ...req.query,
+      page: req.query.page || 1,
+      limit: req.query.limit || 10,
+    };
+    const where = buildNewsFilter(query, true);
+    const result = await fetchNewsData(where, query, "publishedAt");
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Erro ao listar notícias paginadas:", error);
     return res.status(500).json({ error: "Erro ao buscar notícias." });
@@ -328,44 +283,8 @@ router.get("/paginacao", handlePaginatedNews);
 const handleSearchNews = async (req: Request, res: Response) => {
   try {
     const where = buildNewsFilter(req.query);
-    const { page, limit } = req.query;
-
-    if (page || limit) {
-      const pageNum = Math.max(1, Number(page) || 1);
-      const limitNum = Math.max(1, Number(limit) || 10);
-      const skip = (pageNum - 1) * limitNum;
-
-      const [noticias, totalNoticias] = await Promise.all([
-        prisma.news.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limitNum,
-        }),
-        prisma.news.count({ where }),
-      ]);
-
-      const totalPages = Math.ceil(totalNoticias / limitNum);
-
-      return res.status(200).json({
-        data: noticias,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          totalItems: totalNoticias,
-          totalPages,
-          hasNextPage: pageNum < totalPages,
-          hasPreviousPage: pageNum > 1,
-        },
-      });
-    }
-
-    const noticias = await prisma.news.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-
-    return res.status(200).json(noticias);
+    const result = await fetchNewsData(where, req.query, "createdAt");
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Erro na busca de notícias:", error);
     return res.status(500).json({ error: "Erro ao realizar busca." });
