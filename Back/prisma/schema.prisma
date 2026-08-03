@@ -43,8 +43,22 @@ model News {
   publishedAt DateTime?
   authorId    String
   author      User       @relation(fields: [authorId], references: [id])
+  tags        Tag[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt()
+
+  @@map("news")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  news      News[]
+
+  @@map("tags")
 }
 
 model SystemLog {
@@ -55,3 +69,4 @@ model SystemLog {
 
   @@map("system_logs")
 }
+

@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
 import newsRoutes from "./routes/news";
+import tagRoutes from "./routes/tag-routes";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.get("/api/health", (req, res) => {
 // Registrar Rotas da Aplicação
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/tags", tagRoutes);
 app.use("/api", newsRoutes);
 
 // Iniciar Servidor
