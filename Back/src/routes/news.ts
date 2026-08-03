@@ -1,8 +1,11 @@
 import router from "./user-routes";
 import { prisma } from "../lib/prisma";
+import { ensureAuthenticated } from "../middlewares/auth-middleware";
+import { ensureRole } from "../middlewares/role-middleware";
+import { Role } from "@prisma/client";
 
                     // 3. Instancia o router
-router.post("/criar_noticia", async (req,res)=>{
+router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), async (req,res)=>{
   try{
     const {title, content, coverImage, authorId, slug} = req.body;
     const novaNoticia = await prisma.news.create({
@@ -23,7 +26,7 @@ router.post("/criar_noticia", async (req,res)=>{
   }
 })
 
-router.put("/editar_noticia", async (req, res)=>{
+router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), async (req, res)=>{
   try {
     const {title, content, coverImage, authorId, idDaNoticia} = req.body;
     const idNoticia = Number(idDaNoticia)
@@ -46,7 +49,7 @@ router.put("/editar_noticia", async (req, res)=>{
   }
 })
 
-router.delete("/excluir_noticia", async (req, res)=>{
+router.delete("/excluir_noticia", ensureAuthenticated, ensureRole([Role.ADMIN]), async (req, res)=>{
   try {
     const {idDaNoticia} = req.body;
     const idNoticia = Number(idDaNoticia)
