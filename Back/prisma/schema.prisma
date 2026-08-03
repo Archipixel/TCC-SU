@@ -22,12 +22,11 @@ model News{
   id Int @id @default(autoincrement())
   title String @unique
   slug String @unique
-  excerpt String?
   content String 
   coverImage String?
-  status String @default("RASCUNHO") //depois tem que alterar a logica porque ele por padrão nao fica com a data quando é criado, ele fica escrito RASCUNHO e nao aparece na paginacao
+  status Boolean? 
   publishedAt DateTime?              
-  authorId String                    //deixei assim pq ainda não tem usuarios pra eu linkar eles com a outra tabela...
+  authorId String 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 }

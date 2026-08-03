@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Testador de API — TCC Backend (Profissional)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --surface:#0f1724;
+      --card:#0f1a2b;
+      --muted:#94a3b8;
+      --text:#e6eef8;
+      --accent:#3b82f6;
+      --accent-2:#60a5fa;
+      --success:#22c55e;
+      --danger:#ef4444;
+      --glass: rgba(255,255,255,0.02);
+      --border: rgba(255,255,255,0.04);
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg, #071023 0%, #071726 100%);
+      color:var(--text);
+      padding:28px;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+    }
+
+    .app{
+      width:100%;
+      max-width:1220px;
+      display:flex;
+      flex-direction:column;
+      gap:20px;
+    }
+
+    header.app-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:linear-gradient(180deg,var(--surface),rgba(15,26,43,0.8));
+      padding:18px 20px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    }
+
+    header .title{
+      display:flex;
+      gap:14px;
+      align-items:center;
+    }
+    header h1{
+      font-size:18px;
+      letter-spacing:-0.2px;
+    }
+    header p{color:var(--muted);font-size:13px;margin-top:4px}
+
+    .controls{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    input[type="text"], input[type="number"], textarea, select {
+      background:transparent;
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:8px;
+      font-size:13px;
+      min-width:220px;
+    }
+    input[type="text"]::placeholder, textarea::placeholder { color: rgba(255,255,255,0.18); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 460px;
+      gap:20px;
+      align-items:start;
+    }
+    @media (max-width:1000px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .panel{
+      background:linear-gradient(180deg,var(--card), rgba(15,26,43,0.9));
+      border-radius:12px;
+      padding:18px;
+      border:1px solid var(--border);
+      box-shadow: 0 8px 30px rgba(2,6,23,0.45);
+    }
+
+    .panel .panel-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    .panel .panel-title h2{
+      color:var(--accent);
+      font-size:14px;
+    }
+    .form-row{ display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+    .form-group{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+
+    label{ font-size:12px; color:var(--muted); font-weight:600; }
+
+    textarea{ min-height:92px; resize:vertical; width:100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace; font-size:13px; }
+
+    .methods { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn{
+      background:linear-gradient(180deg,var(--accent),var(--accent-2));
+      color:white;
+      padding:8px 12px;
+      border-radius:8px;
+      border:0;
+      cursor:pointer;
+      font-weight:700;
+      letter-spacing:0.2px;
+      font-size:13px;
+      transition:transform .12s ease, box-shadow .12s;
+      box-shadow: 0 6px 18px rgba(59,130,246,0.12);
+    }
+    .btn:active{ transform:translateY(1px) }
+    .btn.ghost{ background:transparent; border:1px solid var(--border); box-shadow:none; color:var(--text); font-weight:600 }
+    .btn.danger{ background:linear-gradient(180deg,var(--danger),#e03a3a) }
+    .btn.success{ background:linear-gradient(180deg,var(--success),#20b04a) }
+
+    .method-badge{
+      padding:6px 8px;
+      border-radius:8px;
+      font-weight:800;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:0.6px;
+    }
+    .method-get{ background:#0284c7; color:white }
+    .method-post{ background:#0ea5a9; color:white }
+    .method-put{ background:#f59e0b; color:white }
+    .method-delete{ background:#ef4444; color:white }
+
+    .right-column{ display:flex; flex-direction:column; gap:14px; }
+
+    pre.response{
+      background: linear-gradient(180deg, #06101a, #071326);
+      border-radius:8px;
+      padding:14px;
+      overflow:auto;
+      font-size:13px;
+      border:1px solid var(--border);
+      color:#cfeffb;
+      max-height:300px;
+    }
+
+    .status {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:13px;
+    }
+    .status.ok{ background: rgba(34,197,94,0.08); color:var(--success); border:1px solid rgba(34,197,94,0.12) }
+    .status.client{ background: rgba(245,158,11,0.06); color:var(--warning); border:1px solid rgba(245,158,11,0.09) }
+    .status.err{ background: rgba(239,68,68,0.06); color:var(--danger); border:1px solid rgba(239,68,68,0.1) }
+
+    .toast{
+      position:fixed;
+      right:28px;
+      bottom:28px;
+      padding:12px 14px;
+      border-radius:10px;
+      font-weight:700;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      box-shadow:0 8px 30px rgba(2,6,23,0.6);
+      z-index:9999;
+      transform:translateY(10px);
+      opacity:0;
+      transition:opacity .18s ease, transform .18s ease;
+    }
+    .toast.show{ opacity:1; transform:none }
+    .toast.success{ background: rgba(34,197,94,0.08); color:var(--success); border:1px solid rgba(34,197,94,0.12) }
+    .toast.error{ background: rgba(239,68,68,0.06); color:var(--danger); border:1px solid rgba(239,68,68,0.08) }
+
+    .table-wrap{ max-height:360px; overflow:auto; border-radius:8px; border:1px solid var(--border); padding:8px; background:var(--glass) }
+    table.db{
+      width:100%;
+      border-collapse:collapse;
+      min-width:600px;
+      font-size:13px;
+    }
+    table.db th, table.db td{
+      padding:8px 10px;
+      border-bottom:1px solid rgba(255,255,255,0.03);
+      text-align:left;
+      vertical-align:middle;
+      color:var(--text);
+    }
+    table.db th{
+      position:sticky;
+      top:0;
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      color:var(--accent);
+      font-weight:700;
+      z-index:2;
+    }
+    .cell-img{ max-width:80px; height:auto; border-radius:6px; display:block; }
+    .meta{ font-size:12px; color:var(--muted) }
+
+    .small{ font-size:12px }
+    .flex-row{ display:flex; gap:8px; align-items:center }
+    .spacer{ flex:1 }
+
+    .copy-btn{
+      background:transparent;
+      border:1px solid var(--border);
+      padding:6px 8px;
+      border-radius:8px;
+      cursor:pointer;
+      color:var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Testador de API TCC Backend">
+    <header class="app-header">
+      <div class="title">
+        <div style="font-size:22px">🧪</div>
+        <div>
+          <h1>Testador de API — TCC Backend</h1>
+          <p class="meta">Ferramenta local para testar rotas, visualizar respostas e inspecionar registros — Interface profissional.</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div style="display:flex;flex-direction:column">
+          <label class="small" for="baseUrl">Base URL</label>
+          <input id="baseUrl" type="text" value="http://localhost:3001/api" placeholder="http://localhost:3001/api" />
+        </div>
+
+        <div style="display:flex;flex-direction:column">
+          <label class="small" for="authToken">Authorization (Bearer)</label>
+          <input id="authToken" type="text" placeholder="Opcional: token JWT..." />
+        </div>
+
+        <button id="btnRefreshDb" class="btn ghost" title="Atualizar tabelas">🔄 Atualizar</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- Left column: requests -->
+      <section class="panel" aria-labelledby="requests-title">
+        <div class="panel-title">
+          <h2 id="requests-title">Requisições</h2>
+          <div class="meta">Gere payloads, envie requisições e veja resultados em tempo real.</div>
+        </div>
+
+        <!-- Criar usuário -->
+        <div style="margin-bottom:14px">
+          <div class="form-row" style="align-items:flex-start">
+            <div class="method-badge method-post">POST</div>
+            <div style="flex:1">
+              <label>Criar Usuário — POST /users</label>
+              <textarea id="userPayload">{
+  "name": "Usuário Teste",
+  "email": "usuario@exemplo.com",
+  "password": "senha123_aqui"
+}</textarea>
+              <div class="form-row" style="margin-top:8px">
+                <button id="btnGenUser" class="btn ghost">🎲 Gerar Aleatório</button>
+                <button id="btnCreateUser" class="btn success">Criar Usuário</button>
+                <button id="btnCopyUser" class="copy-btn small" title="Copiar JSON">📋 Copiar</button>
+                <div class="spacer"></div>
+                <div class="meta small">Evita duplicidade — gera e aplica e-mails/slugs aleatórios.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Criar notícia -->
+        <div style="margin-bottom:14px">
+          <div class="form-row">
+            <div class="method-badge method-post">POST</div>
+            <div style="flex:1">
+              <label>Criar Notícia — POST /criar_noticia</label>
+              <textarea id="postPayload">{
+  "title": "Notícia de Teste V.I.A",
+  "slug": "noticia-teste-via",
+  "excerpt": "Resumo de teste",
+  "content": "Conteúdo de teste da notícia",
+  "coverImage": "https://picsum.photos/200/100",
+  "authorId": "1"
+}</textarea>
+              <div class="form-row" style="margin-top:8px">
+                <button id="btnGenPost" class="btn ghost">🎲 Gerar Aleatório</button>
+                <button id="btnCreatePost" class="btn success">Enviar POST</button>
+                <button id="btnCopyPost" class="copy-btn small">📋 Copiar</button>
+                <div class="spacer"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editar notícia -->
+        <div style="margin-bottom:14px">
+          <div class="form-row">
+            <div class="method-badge method-put">PUT</div>
+            <div style="flex:1">
+              <label>Editar Notícia — PUT /editar_noticia</label>
+              <textarea id="putPayload">{
+  "idDaNoticia": 1,
+  "title": "Notícia Editada",
+  "excerpt": "Resumo atualizado.",
+  "content": "Conteúdo editado com novos detalhes.",
+  "coverImage": "https://picsum.photos/200/100",
+  "authorId": 1
+}</textarea>
+              <div class="form-row" style="margin-top:8px">
+                <button id="btnEditPost" class="btn">Enviar PUT</button>
+                <button id="btnCopyPut" class="copy-btn small">📋 Copiar</button>
+                <div class="spacer"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Excluir notícia -->
+        <div style="margin-bottom:14px">
+          <div class="form-row">
+            <div class="method-badge method-delete">DELETE</div>
+            <div style="flex:1">
+              <label>Excluir Notícia — DELETE /excluir_noticia</label>
+              <div class="form-row">
+                <input id="deleteId" type="number" value="1" />
+                <button id="btnDeletePost" class="btn danger">Excluir Notícia</button>
+                <div class="spacer"></div>
+                <div class="meta small">Se possível use rota /excluir_noticia/:id; o front envia body JSON para compatibilidade com seu backend.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listar/Paginar -->
+        <div style="margin-bottom:8px">
+          <div class="form-row">
+            <div class="method-badge method-get">GET</div>
+            <div style="flex:1">
+              <label>Listar Publicadas — GET /listar_noticias_publicadas</label>
+              <div class="form-row">
+                <input id="page" type="number" value="1" style="width:84px" />
+                <input id="limit" type="number" value="5" style="width:84px" />
+                <button id="btnPaginate" class="btn">Buscar Paginado</button>
+                <button id="btnListAll" class="btn ghost">Listar Todas</button>
+                <div class="spacer"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buscar por slug / pesquisa -->
+        <div>
+          <div class="form-row">
+            <div class="method-badge method-get">GET</div>
+            <div style="flex:1">
+              <label>Buscar por Slug — GET /noticia/:slug</label>
+              <div class="form-row">
+                <input id="slugInput" type="text" value="noticia-teste-via" />
+                <button id="btnSearchSlug" class="btn">Buscar Slug</button>
+                <div class="spacer"></div>
+              </div>
+
+              <label style="margin-top:8px">Pesquisar termo — GET /pesquisa?pesquisa=...</label>
+              <div class="form-row">
+                <input id="searchInput" type="text" placeholder="Digite uma palavra..." />
+                <button id="btnSearchTerm" class="btn">Pesquisar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right column: responses / DB -->
+      <aside class="right-column">
+        <div class="panel" aria-labelledby="response-title">
+          <div class="panel-title">
+            <h2 id="response-title">Resposta da API</h2>
+            <div id="statusTag" class="status" style="display:none">—</div>
+          </div>
+
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+            <div class="meta small">Último retorno</div>
+            <div class="spacer"></div>
+            <button id="btnCopyResponse" class="copy-btn small" title="Copiar resposta JSON">📋 Copiar Resposta</button>
+          </div>
+
+          <div id="tableWrapper" class="table-wrap" style="margin-bottom:12px">
+            <div class="meta" style="padding:18px">Nenhum dado retornado ainda.</div>
+          </div>
+
+          <label class="small">Resposta Bruta (JSON)</label>
+          <pre id="responseOutput" class="response">Clique em um botão para iniciar uma requisição...</pre>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">
+            <h2>📋 Registros do Banco de Dados</h2>
+            <div class="meta small">Fonte: /listar_noticias</div>
+          </div>
+
+          <div id="newsDbTable" class="table-wrap">
+            <div class="meta" style="padding:18px">Clique em "Atualizar" para carregar registros do banco...</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" style="display:none"></div>
+
+  <script>
+  (function(){
+    /* ---------- Helpers & Config ---------- */
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+
+    function showToast(message, isSuccess = true, duration = 3000) {
+      toastEl.textContent = message;
+      toastEl.className = `toast ${isSuccess ? 'success' : 'error'} show`;
+      toastEl.style.display = 'flex';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.className = 'toast';
+        toastEl.style.display = 'none';
+      }, duration);
+    }
+
+    function safeParseJson(text) {
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function getBaseUrl(){
+      return (document.getElementById('baseUrl').value || '').replace(/\/+$/,'') || '';
+    }
+
+    function getAuthToken(){
+      return (document.getElementById('authToken').value || '').trim() || null;
+    }
+
+    function copyToClipboard(text){
+      navigator.clipboard?.writeText(text).then(()=>{
+        showToast('Copiado para área de transferência', true);
+      }).catch(()=> {
+        showToast('Falha ao copiar', false);
+      });
+    }
+
+    /* ---------- JSON Inputs ---------- */
+    function getJsonFromTextArea(id){
+      const value = document.getElementById(id).value;
+      if (!value || !value.trim()) return null;
+      const parsed = safeParseJson(value);
+      if (!parsed) {
+        showToast('JSON inválido — corrija o payload.', false);
+        return null;
+      }
+      return parsed;
+    }
+
+    /* ---------- Render Table (Seguro) ---------- */
+    function renderTable(data, targetContainer) {
+      let items = data;
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        if (Array.isArray(data.news)) items = data.news;
+        else if (Array.isArray(data.data)) items = data.data;
+        else items = [data];
+      }
+
+      if (!Array.isArray(items) || items.length === 0) {
+        targetContainer.innerHTML = `<div style="padding:12px;color:var(--muted)">Nenhum registro encontrado.</div>`;
+        return;
+      }
+
+      // atua com união de chaves
+      const keysSet = new Set();
+      items.forEach(it => {
+        if (it && typeof it === 'object') Object.keys(it).forEach(k => keysSet.add(k));
+      });
+      const keys = Array.from(keysSet);
+
+      // cria tabela via DOM
+      const table = document.createElement('table');
+      table.className = 'db';
+      const thead = document.createElement('thead');
+      const trHead = document.createElement('tr');
+      keys.forEach(k => {
+        const th = document.createElement('th');
+        th.textContent = k;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      items.forEach(row => {
+        const tr = document.createElement('tr');
+        keys.forEach(key => {
+          const td = document.createElement('td');
+          let val = (row && Object.prototype.hasOwnProperty.call(row, key)) ? row[key] : null;
+
+          if (val === null || val === undefined) {
+            td.textContent = '';
+          } else if (typeof val === 'object') {
+            const txt = JSON.stringify(val);
+            td.textContent = txt;
+            td.title = txt;
+          } else {
+            // detect image URLs (aceita query params)
+            const str = String(val);
+            const isImage = /^(https?:\/\/.+\.(?:png|jpg|jpeg|gif|webp))(\?.*)?$/i.test(str);
+            if (isImage) {
+              const img = document.createElement('img');
+              img.src = str;
+              img.alt = key;
+              img.className = 'cell-img';
+              td.appendChild(img);
+              td.title = str;
+            } else {
+              td.textContent = str;
+              td.title = str.length > 200 ? str.slice(0,200) + '…' : str;
+            }
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      targetContainer.innerHTML = '';
+      targetContainer.appendChild(table);
+    }
+
+    /* ---------- Status UI ---------- */
+    function updateStatusTag(res) {
+      const statusTag = document.getElementById('statusTag');
+      if (!res) {
+        statusTag.style.display = 'none';
+        return;
+      }
+      const { status, statusText } = res;
+      statusTag.style.display = 'inline-flex';
+      statusTag.textContent = `Status: ${status} ${statusText || ''}`;
+      statusTag.className = 'status';
+      if (status >= 200 && status < 300) statusTag.classList.add('ok');
+      else if (status >= 400 && status < 500) statusTag.classList.add('client');
+      else statusTag.classList.add('err');
+    }
+
+    /* ---------- Fetch with timeout and headers ---------- */
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      options.signal = controller.signal;
+      try {
+        const resp = await fetch(url, options);
+        clearTimeout(id);
+        return resp;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
+      }
+    }
+
+    /* ---------- Core: testRoute (ALTERAÇÃO: NÃO CONVERTE DELETE PARA QUERY) ---------- */
+    async function testRoute(endpoint, method='GET', body=null, callerEvent=null) {
+      if (callerEvent && typeof callerEvent.preventDefault === 'function') callerEvent.preventDefault();
+
+      const baseUrl = getBaseUrl();
+      if (!baseUrl) {
+        showToast('Informe a Base URL antes de testar.', false);
+        return;
+      }
+
+      // monta URL e headers
+      let url = baseUrl + endpoint;
+      const headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      };
+      const token = getAuthToken();
+      if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      const output = document.getElementById('responseOutput');
+      const tableWrapper = document.getElementById('tableWrapper');
+      output.textContent = 'Carregando...';
+      tableWrapper.innerHTML = `<div style="padding:12px;color:var(--muted)">Carregando dados...</div>`;
+      updateStatusTag(null);
+
+      let options = {
+        method,
+        headers,
+      };
+
+      // ALTERAÇÃO: Sempre enviar body JSON para POST / PUT / DELETE quando existir
+      if (body && (method === 'POST' || method === 'PUT' || method === 'DELETE')) {
+        options.body = JSON.stringify(body);
+      }
+
+      try {
+        const resp = await fetchWithTimeout(url, options, 15000); // 15s timeout
+        updateStatusTag(resp);
+
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const data = await resp.json();
+          output.textContent = JSON.stringify(data, null, 2);
+          try { renderTable(data, tableWrapper); } catch(e){
+            tableWrapper.innerHTML = `<div style="padding:12px;color:var(--muted)">Não foi possível renderizar a tabela.</div>`;
+          }
+
+          if (resp.ok) {
+            showToast(`✔️ ${method} executado com sucesso.`, true);
+            if (method !== 'GET') {
+              // atualiza banco
+              carregarBancoCompleto();
+            }
+          } else {
+            // tenta extrair mensagem de erro se existir
+            const msg = data && (data.error || data.message || JSON.stringify(data)) || `Erro ${resp.status}`;
+            showToast(`⚠️ ${msg}`, false);
+          }
+        } else {
+          const text = await resp.text();
+          output.textContent = text;
+          tableWrapper.innerHTML = `<div style="padding:12px;color:var(--muted)">Resposta não é JSON.</div>`;
+          if (!resp.ok) showToast(`⚠️ Erro ${resp.status}`, false);
+        }
+      } catch (err) {
+        // erro de rede / timeout
+        updateStatusTag({ status: 0, statusText: 'Erro de conexão' });
+        output.textContent = `Não foi possível se conectar à API.\nVerifique se o backend está rodando e o CORS está habilitado.\n\nDetalhes: ${err && err.name === 'AbortError' ? 'Tempo de requisição esgotado' : (err && err.message) || err}`;
+        tableWrapper.innerHTML = `<div style="padding:12px;color:var(--muted)">Erro de conexão.</div>`;
+        showToast('❌ Falha de conexão ou timeout.', false);
+      }
+    }
+
+    /* ---------- carregarBancoCompleto ---------- */
+    async function carregarBancoCompleto(){
+      const baseUrl = getBaseUrl();
+      const container = document.getElementById('newsDbTable');
+      if (!baseUrl) {
+        container.innerHTML = `<div style="padding:12px;color:var(--muted)">Base URL não definida.</div>`;
+        return;
+      }
+
+      const url = baseUrl + '/listar_noticias';
+      const headers = { 'Accept': 'application/json' };
+      const token = getAuthToken();
+      if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      container.innerHTML = `<div style="padding:12px;color:var(--muted)">Carregando...</div>`;
+      try {
+        const resp = await fetchWithTimeout(url, { method:'GET', headers }, 12000);
+        if (resp.ok && resp.headers.get('content-type')?.includes('application/json')) {
+          const data = await resp.json();
+          renderTable(data, container);
+        } else {
+          container.innerHTML = `<div style="padding:12px;color:var(--muted)">Erro ao buscar registros.</div>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<div style="padding:12px;color:var(--muted)">Falha de conexão ao atualizar banco.</div>`;
+      }
+    }
+
+    /* ---------- Event bindings ---------- */
+    document.addEventListener('DOMContentLoaded', ()=> {
+      // Buttons
+      document.getElementById('btnGenUser').addEventListener('click', ()=> {
+        const randomId = Math.floor(Math.random()*900000+100000);
+        const payload = {
+          name: `Usuário ${randomId}`,
+          email: `teste_${randomId}@email.com`,
+          password: `senha_${randomId}`
+        };
+        document.getElementById('userPayload').value = JSON.stringify(payload, null, 2);
+        showToast('🎲 Dados aleatórios gerados para usuário', true);
+      });
+
+      document.getElementById('btnGenPost').addEventListener('click', ()=> {
+        const randomId = Math.floor(Math.random()*900000+100000);
+        const payload = {
+          title: `Notícia de Teste #${randomId}`,
+          slug: `noticia-teste-${randomId}`,
+          excerpt: `Resumo gerado automaticamente ${randomId}`,
+          content: `Conteúdo de teste da notícia gerada em tempo real #${randomId}`,
+          coverImage: `https://picsum.photos/seed/${randomId}/200/100`,
+          authorId: "1"
+        };
+        document.getElementById('postPayload').value = JSON.stringify(payload, null, 2);
+        showToast('🎲 Dados aleatórios gerados para notícia', true);
+      });
+
+      // Create user
+      document.getElementById('btnCreateUser').addEventListener('click', (e) => {
+        const body = getJsonFromTextArea('userPayload');
+        if (!body) return;
+        testRoute('/users', 'POST', body, e);
+      });
+      document.getElementById('btnCopyUser').addEventListener('click', ()=> copyToClipboard(document.getElementById('userPayload').value));
+
+      // Create post
+      document.getElementById('btnCreatePost').addEventListener('click', (e)=> {
+        const body = getJsonFromTextArea('postPayload');
+        if (!body) return;
+        testRoute('/criar_noticia', 'POST', body, e);
+      });
+      document.getElementById('btnCopyPost').addEventListener('click', ()=> copyToClipboard(document.getElementById('postPayload').value));
+
+      // Edit post
+      document.getElementById('btnEditPost').addEventListener('click', (e)=> {
+        const body = getJsonFromTextArea('putPayload');
+        if (!body) return;
+        testRoute('/editar_noticia', 'PUT', body, e);
+      });
+      document.getElementById('btnCopyPut').addEventListener('click', ()=> copyToClipboard(document.getElementById('putPayload').value));
+
+      // Delete post
+      document.getElementById('btnDeletePost').addEventListener('click', (e)=> {
+        const id = Number(document.getElementById('deleteId').value);
+        if (!id) { showToast('Informe um ID válido para exclusão', false); return; }
+        // ALTERAÇÃO: envia body JSON (req.body.idDaNoticia) para compatibilidade com backend
+        testRoute('/excluir_noticia', 'DELETE', { idDaNoticia: id }, e);
+      });
+
+      // Pagination & listings
+      document.getElementById('btnPaginate').addEventListener('click', (e)=> {
+        const page = Number(document.getElementById('page').value) || 1;
+        const limit = Number(document.getElementById('limit').value) || 5;
+        testRoute(`/listar_noticias_publicadas?page=${page}&limit=${limit}`, 'GET', null, e);
+      });
+      document.getElementById('btnListAll').addEventListener('click', (e)=> testRoute('/listar_noticias', 'GET', null, e));
+
+      // search slug / term
+      document.getElementById('btnSearchSlug').addEventListener('click', (e)=> {
+        const slug = (document.getElementById('slugInput').value || '').trim();
+        if (!slug) { showToast('Informe um slug para busca', false); return; }
+        testRoute(`/noticia/${encodeURIComponent(slug)}`, 'GET', null, e);
+      });
+      document.getElementById('btnSearchTerm').addEventListener('click', (e)=> {
+        const term = (document.getElementById('searchInput').value || '').trim();
+        testRoute(`/pesquisa?pesquisa=${encodeURIComponent(term)}`, 'GET', null, e);
+      });
+
+      // Refresh DB
+      document.getElementById('btnRefreshDb').addEventListener('click', ()=> carregarBancoCompleto());
+
+      // copy response
+      document.getElementById('btnCopyResponse').addEventListener('click', ()=> {
+        copyToClipboard(document.getElementById('responseOutput').textContent || '');
+      });
+
+      // initial load
+      carregarBancoCompleto();
+    });
+
+    // expose some helpers for debugging (optional)
+    window.testRoute = testRoute;
+    window.carregarBancoCompleto = carregarBancoCompleto;
+  })();
+  </script>
+</body>
+</html>

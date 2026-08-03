@@ -9,7 +9,7 @@ Content-Type: application/json
 }
 ###
 
-POST http://localhost:3001/criar_noticia
+POST http://localhost:3001/api/criar_noticia
 Content-Type: application/json
 
 {
@@ -34,7 +34,7 @@ Content-Type: application/json
 }
 
 ### 3. Excluir Notícia
-DELETE http://localhost:3001/excluir_noticia
+DELETE http://localhost:3001/api/excluir_noticia
 Content-Type: application/json
 
 {
@@ -48,7 +48,7 @@ GET http://localhost:3001/noticia/noticia-teste-via
 GET http://localhost:3001/listar_noticias
 
 ### 6. Listar Notícias Publicadas (Padrão)
-GET http://localhost:3001/listar_noticias_publicadas
+GET http://localhost:3001/api/listar_noticias_publicadas
 
 ### 7. Listar Notícias Publicadas com Paginação
 GET http://localhost:3001/listar_noticias_publicadas?page=1&limit=5
