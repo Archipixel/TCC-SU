@@ -28,6 +28,7 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now()) @map("created_at")
   news      News[]
+  likes     Like[]
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
@@ -45,6 +46,22 @@ model News {
   author      User       @relation(fields: [authorId], references: [id])
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt()
+  likes       Like[]
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  newsId Int
+  news   News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+
+  @@map("likes")
 }
 
 model SystemLog {
