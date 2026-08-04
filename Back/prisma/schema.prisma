@@ -3,12 +3,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum NewsStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -17,6 +11,18 @@ enum Role {
   ADMIN
   EDITOR
   USER
+}
+
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -29,21 +35,53 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  news     News[]
+  comments Comment[]
+
   @@map("users")
 }
 
-model News{
-  id Int @id @default(autoincrement())
-  title String @unique
-  slug String @unique
-  content String 
-  coverImage String?
-  status NewsStatus  @default(DRAFT)
-  publishedAt DateTime?              
-  authorId String 
-  author User @relation(fields: [authorId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt()
+model News {
+  id          Int        @id @default(autoincrement())
+  title       String     @unique
+  slug        String     @unique
+  content     String
+  coverImage  String?
+  status      NewsStatus @default(DRAFT)
+  publishedAt DateTime?
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id])
+  tags        Tag[]
+  comments    Comment[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("news")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  news      News[]
+
+  @@map("tags")
+}
+
+model Comment {
+  id        String        @id @default(uuid())
+  content   String
+  status    CommentStatus @default(PENDING)
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsId    Int           @map("news_id")
+  news      News          @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@map("comments")
 }
 
 model SystemLog {
