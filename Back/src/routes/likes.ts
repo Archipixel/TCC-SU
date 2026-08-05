@@ -108,6 +108,6 @@ export const handleGetNewsLikes = async (req: Request, res: Response) => {
 
 router.post("/noticias/:id/like", ensureAuthenticated, handleToggleLike);
 
-router.get("/noticias/:id/likes", ensureAuthenticated, handleGetNewsLikes);
+router.get("/noticias/:id/likes", handleGetNewsLikes);
 
 export default router;
