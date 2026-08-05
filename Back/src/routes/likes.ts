@@ -1,6 +1,9 @@
 import { Request, Response, Router } from "express";
 import { prisma } from "../lib/prisma";
 import { ensureAuthenticated } from "../middlewares/auth-middleware";
+import { Prisma } from "@prisma/client";
+
+
 
 const router = Router();
 
@@ -12,25 +15,25 @@ export const handleToggleLike = async (req: Request, res: Response) => {
     const userId = userFromReq?.id ? String(userFromReq.id) : undefined;
 
     if (!userId) {
-      return res.status(401).json({ error: "Usuário não autenticado." });
+      return res.status(401).json({ error:true , message:"Usuário não autenticado." });
     }
 
     if (isNaN(newsId)) {
-      return res.status(400).json({ error: "ID da notícia inválido." });
+      return res.status(400).json({ error:true, message:"ID da notícia inválido." });
     }
     const noticiaExiste = await prisma.news.findUnique({
       where: { id: newsId },
     });
 
     if (!noticiaExiste) {
-      return res.status(404).json({ error: "Notícia não encontrada." });
+      return res.status(404).json({ error:true, message:"Notícia não encontrada." });
     }
 
     const likeExistente = await prisma.like.findUnique({
       where: {
         newsId_userId: { newsId, userId },
       },
-    });
+    });   
 
     if (likeExistente) {
       await prisma.like.delete({
@@ -50,8 +53,21 @@ export const handleToggleLike = async (req: Request, res: Response) => {
     return res.status(201).json({ liked: true, totalLikes, message: "Notícia curtida!" });
 
   } catch (error) {
-    return res.status(500).json({ error: "Erro ao processar o like." });
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    return res.status(409).json({
+      error: true,
+      message: "Você já curtiu essa notícia.",
+    });
   }
+
+  return res.status(500).json({
+    error: true,
+    message: "Erro ao processar o like.",
+  });
+}
 };
 
 export const handleGetNewsLikes = async (req: Request, res: Response) => {
@@ -61,7 +77,7 @@ export const handleGetNewsLikes = async (req: Request, res: Response) => {
     const userId = (req as any).user?.id; // Pode ser undefined se a pessoa não estiver logada
 
     if (isNaN(newsId)) {
-      return res.status(400).json({ error: "ID inválido." });
+      return res.status(400).json({ error:true, message: "ID inválido." });
     }
 
     const totalLikes = await prisma.like.count({
@@ -84,7 +100,7 @@ export const handleGetNewsLikes = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("Erro ao buscar likes:", error);
-    return res.status(500).json({ error: "Erro ao carregar os likes." });
+    return res.status(500).json({ error: true, message: "Erro ao carregar os likes." });
   }
 };
 
@@ -92,6 +108,6 @@ export const handleGetNewsLikes = async (req: Request, res: Response) => {
 
 router.post("/noticias/:id/like", ensureAuthenticated, handleToggleLike);
 
-router.get("/noticias/:id/likes", handleGetNewsLikes);
+router.get("/noticias/:id/likes", ensureAuthenticated, handleGetNewsLikes);
 
 export default router;
