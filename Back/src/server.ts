@@ -1,13 +1,16 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
 import newsRoutes from "./routes/news";
 import commentRoutes from "./routes/comment-routes";
 import categoryRoutes from "./routes/category-routes";
+import likesRoutes from "./routes/likes";
 
 dotenv.config();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -30,6 +33,7 @@ app.use("/api/users", userRoutes);
 app.use("/api", newsRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api", likesRoutes);
 
 // Iniciar Servidor
 app.listen(PORT, () => {
