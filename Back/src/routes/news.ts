@@ -3,13 +3,13 @@ import { prisma } from "../lib/prisma";
 import { ensureAuthenticated } from "../middlewares/auth-middleware";
 import { ensureRole } from "../middlewares/role-middleware";
 import { Role } from "@prisma/client";
+import { appCache } from "../lib/cache";
 
 const router = Router();
 
 // ============================================================================
 // FUNÇÃO AUXILIAR: buildNewsFilter
-// Unifica o suporte a query params antigos (?q=termo) e novos (?pesquisa= ou ?search=),
-// além de suporte a status (boolean) e IDs de autor.
+// Unifica suporte a query params, status, autor, busca textual e TAGS.
 // ============================================================================
 function buildNewsFilter(query: any, onlyPublished = false) {
   const where: any = {};
@@ -26,8 +26,6 @@ function buildNewsFilter(query: any, onlyPublished = false) {
 
   // 2. Regra para rotas de publicadas
   if (onlyPublished && !query.status) {
-    // Se a rota for de publicadas e o cliente não especificou status manualmente,
-    // busca todas que estão com o enum PUBLISHED.
     where.status = "PUBLISHED";
   }
 
@@ -37,7 +35,18 @@ function buildNewsFilter(query: any, onlyPublished = false) {
     where.authorId = String(authorId);
   }
 
-  // 4. PESQUISA POR TERMO
+  // 4. FILTRO POR TAG (id ou slug)
+  const tagParam = query.tag || query.tagId || query.tagSlug;
+  if (tagParam && typeof tagParam === "string" && tagParam.trim() !== "") {
+    const cleanTag = tagParam.trim();
+    where.tags = {
+      some: {
+        OR: [{ id: cleanTag }, { slug: cleanTag }],
+      },
+    };
+  }
+
+  // 5. PESQUISA POR TERMO
   const termo = query.pesquisa || query.search || query.q;
   if (termo && typeof termo === "string" && termo.trim() !== "") {
     const cleanTerm = termo.trim();
@@ -49,21 +58,35 @@ function buildNewsFilter(query: any, onlyPublished = false) {
 
   return where;
 }
+
 // ============================================================================
 // HELPER DE CONSULTA E PAGINAÇÃO
-// Centraliza a execução do Prisma para evitar repetição de lógica
+// Centraliza a execução do Prisma com suporte a tags e autor incluídos
 // ============================================================================
+const newsInclude = {
+  tags: true,
+  author: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatar: true,
+    },
+  },
+};
+
 async function fetchNewsData(where: any, query: any, defaultSortField: "createdAt" | "publishedAt" = "createdAt") {
   const { page, limit } = query;
 
   if (page || limit) {
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, Number(limit) || 10)); // Limite máximo defensivo (100)
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 10));
     const skip = (pageNum - 1) * limitNum;
 
     const [noticias, totalNoticias] = await Promise.all([
       prisma.news.findMany({
         where,
+        include: newsInclude,
         orderBy: { [defaultSortField]: "desc" },
         skip,
         take: limitNum,
@@ -89,6 +112,7 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
 
   return prisma.news.findMany({
     where,
+    include: newsInclude,
     orderBy: { [defaultSortField]: "desc" },
     include: { categories: true },
   });
@@ -106,6 +130,12 @@ const handleCreateNews = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Título e slug são obrigatórios." });
     }
 
+    const idsToConnect: string[] = Array.isArray(tagIds)
+      ? tagIds
+      : Array.isArray(tags)
+      ? tags
+      : [];
+
     const novaNoticia = await prisma.news.create({
       data: {
         title,
@@ -113,6 +143,13 @@ const handleCreateNews = async (req: Request, res: Response) => {
         content,
         authorId: authorId ? String(authorId) : (req as any).user?.id || "",
         coverImage,
+        ...(idsToConnect.length > 0 && {
+          tags: {
+            connect: idsToConnect.map((id: string) => ({ id })),
+          },
+        }),
+      },
+      include: newsInclude,
         ...(Array.isArray(catIds) && catIds.length > 0 && {
           categories: {
             connect: catIds.map((id: string) => ({ id: String(id) })),
@@ -121,6 +158,8 @@ const handleCreateNews = async (req: Request, res: Response) => {
       },
       include: { categories: true },
     });
+
+    appCache.del("tags:all");
 
     return res.status(201).json(novaNoticia);
   } catch (error) {
@@ -150,12 +189,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
     const { title, content, coverImage, authorId, slug, status, publishedAt, categoryIds, categories } = req.body;
     const catIds = categoryIds !== undefined ? categoryIds : categories;
 
-    // Normaliza o status enviado se existir
     const normalizedStatus = status ? String(status).toUpperCase() : undefined;
 
-    // Lógica para tratar o publishedAt:
-    // 1. Se foi passado explicitamente no body, usa o valor passado
-    // 2. Se o status mudou para PUBLISHED e publishedAt não veio, define como a data/hora atual
     let finalPublishedAt: Date | null | undefined = undefined;
 
     if (publishedAt !== undefined) {
@@ -163,6 +198,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
     } else if (normalizedStatus === "PUBLISHED") {
       finalPublishedAt = new Date();
     }
+
+    const idsToSet = tagIds !== undefined ? tagIds : tags;
 
     const noticiaAtualizada = await prisma.news.update({
       where: { id: idNoticia },
@@ -174,6 +211,13 @@ const handleUpdateNews = async (req: Request, res: Response) => {
         ...(authorId !== undefined && { authorId: String(authorId) }),
         ...(normalizedStatus !== undefined && { status: normalizedStatus as any }),
         ...(finalPublishedAt !== undefined && { publishedAt: finalPublishedAt }),
+        ...(Array.isArray(idsToSet) && {
+          tags: {
+            set: idsToSet.map((id: string) => ({ id })),
+          },
+        }),
+      },
+      include: newsInclude,
         ...(Array.isArray(catIds) && {
           categories: {
             set: catIds.map((id: string) => ({ id: String(id) })),
@@ -182,6 +226,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
       },
       include: { categories: true },
     });
+
+    appCache.del("tags:all");
 
     return res.status(200).json(noticiaAtualizada);
   } catch (error) {
@@ -212,6 +258,8 @@ const handleDeleteNews = async (req: Request, res: Response) => {
       where: { id: idNoticia },
     });
 
+    appCache.del("tags:all");
+
     return res.status(200).json(noticiaExcluida);
   } catch (error) {
     console.error("Erro ao excluir notícia:", error);
@@ -230,6 +278,7 @@ const handleGetNewsBySlug = async (req: Request, res: Response) => {
     const slug = String(req.params.slug);
     const noticia = await prisma.news.findUnique({
       where: { slug },
+      include: newsInclude,
       include: { categories: true },
     });
 
@@ -319,5 +368,70 @@ const handleSearchNews = async (req: Request, res: Response) => {
 
 router.get("/noticias/pesquisa", handleSearchNews);
 router.get("/pesquisa", handleSearchNews);
+
+// ============================================================================
+// RELACIONAR TAGS DIRETA A UMA NOTÍCIA (POST /noticias/:id/tags e DELETE /noticias/:id/tags/:tagId)
+// ============================================================================
+const handleAddTagsToNews = async (req: Request, res: Response) => {
+  try {
+    const newsId = Number(req.params.id);
+    if (isNaN(newsId)) {
+      return res.status(400).json({ error: "ID da notícia inválido." });
+    }
+
+    const { tagIds } = req.body;
+    if (!Array.isArray(tagIds) || tagIds.length === 0) {
+      return res.status(400).json({ error: "O campo tagIds deve ser um array de IDs de tags." });
+    }
+
+    const noticiaAtualizada = await prisma.news.update({
+      where: { id: newsId },
+      data: {
+        tags: {
+          connect: tagIds.map((id: string) => ({ id })),
+        },
+      },
+      include: newsInclude,
+    });
+
+    appCache.del("tags:all");
+
+    return res.status(200).json(noticiaAtualizada);
+  } catch (error: any) {
+    console.error("Erro ao adicionar tags à notícia:", error);
+    return res.status(500).json({ error: "Erro ao associar tags à notícia." });
+  }
+};
+
+const handleRemoveTagFromNews = async (req: Request, res: Response) => {
+  try {
+    const newsId = Number(req.params.id);
+    const tagId = String(req.params.tagId);
+
+    if (isNaN(newsId) || !tagId) {
+      return res.status(400).json({ error: "IDs inválidos." });
+    }
+
+    const noticiaAtualizada = await prisma.news.update({
+      where: { id: newsId },
+      data: {
+        tags: {
+          disconnect: { id: tagId },
+        },
+      },
+      include: newsInclude,
+    });
+
+    appCache.del("tags:all");
+
+    return res.status(200).json(noticiaAtualizada);
+  } catch (error: any) {
+    console.error("Erro ao remover tag da notícia:", error);
+    return res.status(500).json({ error: "Erro ao remover tag da notícia." });
+  }
+};
+
+router.post("/noticias/:id/tags", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleAddTagsToNews);
+router.delete("/noticias/:id/tags/:tagId", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleRemoveTagFromNews);
 
 export default router;
