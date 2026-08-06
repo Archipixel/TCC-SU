@@ -3,20 +3,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
 enum NewsStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 enum Role {
   ADMIN
   EDITOR
   USER
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -27,8 +33,11 @@ model User {
   avatar    String?
   role      Role     @default(USER)
   createdAt DateTime @default(now()) @map("created_at")
-  news      News[]
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  news     News[]
+  comments Comment[]
+  likes    Like[]
 
   @@map("users")
 }
@@ -46,6 +55,11 @@ model News {
   tags        Tag[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt()
+  updatedAt   DateTime   @updatedAt
+
+  comments   Comment[]
+  categories Category[]
+  likes      Like[]
 
   @@map("news")
 }
@@ -59,6 +73,44 @@ model Tag {
   news      News[]
 
   @@map("tags")
+model Comment {
+  id        String        @id @default(uuid())
+  content   String
+  status    CommentStatus @default(PENDING)
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsId    Int           @map("news_id")
+  news      News          @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  @@map("comments")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  news News[]
+
+  @@map("categories")
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  newsId Int
+  news   News @relation(fields: [newsId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([newsId, userId])
+
+  @@map("likes")
 }
 
 model SystemLog {
@@ -70,3 +122,4 @@ model SystemLog {
   @@map("system_logs")
 }
 
+}

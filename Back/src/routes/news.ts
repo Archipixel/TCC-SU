@@ -90,6 +90,7 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
         orderBy: { [defaultSortField]: "desc" },
         skip,
         take: limitNum,
+        include: { categories: true },
       }),
       prisma.news.count({ where }),
     ]);
@@ -113,6 +114,7 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
     where,
     include: newsInclude,
     orderBy: { [defaultSortField]: "desc" },
+    include: { categories: true },
   });
 }
 
@@ -121,7 +123,8 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
 // ============================================================================
 const handleCreateNews = async (req: Request, res: Response) => {
   try {
-    const { title, content, coverImage, authorId, slug, tags, tagIds } = req.body;
+    const { title, content, coverImage, authorId, slug, categoryIds, categories } = req.body;
+    const catIds = categoryIds || categories;
 
     if (!title || !slug) {
       return res.status(400).json({ error: "Título e slug são obrigatórios." });
@@ -147,6 +150,13 @@ const handleCreateNews = async (req: Request, res: Response) => {
         }),
       },
       include: newsInclude,
+        ...(Array.isArray(catIds) && catIds.length > 0 && {
+          categories: {
+            connect: catIds.map((id: string) => ({ id: String(id) })),
+          },
+        }),
+      },
+      include: { categories: true },
     });
 
     appCache.del("tags:all");
@@ -176,7 +186,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "ID inválido." });
     }
 
-    const { title, content, coverImage, authorId, slug, status, publishedAt, tags, tagIds } = req.body;
+    const { title, content, coverImage, authorId, slug, status, publishedAt, categoryIds, categories } = req.body;
+    const catIds = categoryIds !== undefined ? categoryIds : categories;
 
     const normalizedStatus = status ? String(status).toUpperCase() : undefined;
 
@@ -207,6 +218,13 @@ const handleUpdateNews = async (req: Request, res: Response) => {
         }),
       },
       include: newsInclude,
+        ...(Array.isArray(catIds) && {
+          categories: {
+            set: catIds.map((id: string) => ({ id: String(id) })),
+          },
+        }),
+      },
+      include: { categories: true },
     });
 
     appCache.del("tags:all");
@@ -261,6 +279,7 @@ const handleGetNewsBySlug = async (req: Request, res: Response) => {
     const noticia = await prisma.news.findUnique({
       where: { slug },
       include: newsInclude,
+      include: { categories: true },
     });
 
     if (!noticia) {
