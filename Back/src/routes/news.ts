@@ -67,6 +67,7 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
         orderBy: { [defaultSortField]: "desc" },
         skip,
         take: limitNum,
+        include: { categories: true },
       }),
       prisma.news.count({ where }),
     ]);
@@ -89,6 +90,7 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
   return prisma.news.findMany({
     where,
     orderBy: { [defaultSortField]: "desc" },
+    include: { categories: true },
   });
 }
 
@@ -97,7 +99,8 @@ async function fetchNewsData(where: any, query: any, defaultSortField: "createdA
 // ============================================================================
 const handleCreateNews = async (req: Request, res: Response) => {
   try {
-    const { title, content, coverImage, authorId, slug } = req.body;
+    const { title, content, coverImage, authorId, slug, categoryIds, categories } = req.body;
+    const catIds = categoryIds || categories;
 
     if (!title || !slug) {
       return res.status(400).json({ error: "Título e slug são obrigatórios." });
@@ -110,7 +113,13 @@ const handleCreateNews = async (req: Request, res: Response) => {
         content,
         authorId: authorId ? String(authorId) : (req as any).user?.id || "",
         coverImage,
+        ...(Array.isArray(catIds) && catIds.length > 0 && {
+          categories: {
+            connect: catIds.map((id: string) => ({ id: String(id) })),
+          },
+        }),
       },
+      include: { categories: true },
     });
 
     return res.status(201).json(novaNoticia);
@@ -138,7 +147,8 @@ const handleUpdateNews = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "ID inválido." });
     }
 
-    const { title, content, coverImage, authorId, slug, status, publishedAt } = req.body;
+    const { title, content, coverImage, authorId, slug, status, publishedAt, categoryIds, categories } = req.body;
+    const catIds = categoryIds !== undefined ? categoryIds : categories;
 
     // Normaliza o status enviado se existir
     const normalizedStatus = status ? String(status).toUpperCase() : undefined;
@@ -164,7 +174,13 @@ const handleUpdateNews = async (req: Request, res: Response) => {
         ...(authorId !== undefined && { authorId: String(authorId) }),
         ...(normalizedStatus !== undefined && { status: normalizedStatus as any }),
         ...(finalPublishedAt !== undefined && { publishedAt: finalPublishedAt }),
+        ...(Array.isArray(catIds) && {
+          categories: {
+            set: catIds.map((id: string) => ({ id: String(id) })),
+          },
+        }),
       },
+      include: { categories: true },
     });
 
     return res.status(200).json(noticiaAtualizada);
@@ -214,6 +230,7 @@ const handleGetNewsBySlug = async (req: Request, res: Response) => {
     const slug = String(req.params.slug);
     const noticia = await prisma.news.findUnique({
       where: { slug },
+      include: { categories: true },
     });
 
     if (!noticia) {

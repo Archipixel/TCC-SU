@@ -42,7 +42,7 @@ export async function updateCategoryController(req: Request, res: Response) {
       return res.status(400).json({ error: true, message: "Nome da categoria é obrigatório" });
     }
 
-    const category = await updateCategory(id, name.trim());
+    const category = await updateCategory(String(id), name.trim());
     return res.status(200).json({ success: true, message: "Categoria atualizada com sucesso", data: category });
   } catch (error) {
     return handleError(res, error);
@@ -52,7 +52,7 @@ export async function updateCategoryController(req: Request, res: Response) {
 export async function deleteCategoryController(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    await deleteCategory(id);
+    await deleteCategory(String(id));
     return res.status(200).json({ success: true, message: "Categoria excluída com sucesso" });
   } catch (error) {
     return handleError(res, error);
@@ -71,7 +71,7 @@ export async function getCategoriesController(req: Request, res: Response) {
 export async function getNewsByCategoryController(req: Request, res: Response) {
   try {
     const { id } = req.params;
-    const news = await getNewsByCategory(id);
+    const news = await getNewsByCategory(String(id));
     return res.status(200).json({ success: true, message: "Notícias listadas com sucesso", data: news });
   } catch (error) {
     return handleError(res, error);
