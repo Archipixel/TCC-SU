@@ -1,3 +1,5 @@
+/// <reference path="./Back/node_modules/@types/node/index.d.ts" />
+
 import { PrismaClient, Role, NewsStatus, CommentStatus } from "./Back/node_modules/@prisma/client";
 import path from "path";
 
