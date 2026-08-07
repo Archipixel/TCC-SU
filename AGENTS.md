@@ -22,11 +22,17 @@ Cada agente possui um arquivo de diretriz detalhado armazenado na pasta `agents/
 3. 🛣️ **[Agente 3: Rotas e APIs Backend](agents/backend-routes-agent.md)**
    - **Arquitetura**: Divisão em `routes`, `controllers` e `services`.
    - **Padrões**: Validação com Zod, respostas RESTful estruturadas, tratamento semântico de erros HTTP.
+   - **Documentação Síncrona**: Atualização síncrona obrigatória do `README.md` e do [`agents/api-docs-agent.md`](agents/api-docs-agent.md) ao criar/alterar rotas.
 
 4. 🔐 **[Agente 4: Autenticação, Autorização e Segurança](agents/auth-agent.md)**
    - **OAuth & JWT**: Login Google OAuth 2.0, verificação via `google-auth-library` e geração de JWT.
    - **Middlewares**: Autenticação com `ensureAuthenticated` e controle de acesso com `ensureRole([ADMIN, EDITOR, USER])`.
    - **Persistência**: Upsert no SQLite via Prisma Client e gerenciamento de sessão/cache.
+
+5. 📡 **[Agente 5: Documentação e Integração de APIs](agents/api-docs-agent.md)**
+   - **Especificações REST**: Especificação de todas as APIs (Autenticação, Notícias, Categorias, Comentários, Curtidas, Uploads).
+   - **Contratos**: Requisitos de payload, parâmetros, cabeçalhos de autenticação e formato de resposta de sucesso/erro.
+   - **Exemplos**: Amostras de JSON de requisição e resposta para integração com o Frontend.
 
 ---
 
@@ -37,11 +43,13 @@ O repositório é estruturado em duas camadas principais:
 ```
 TCC SU/
 ├── AGENTS.md                  # Instruções centrais e sitemap de agentes
+├── seed.ts                    # Script de povoamento do banco de dados (npx tsx seed.ts)
 ├── agents/                    # Pasta contendo os agentes de IA
 │   ├── git-commit-agent.md
 │   ├── database-agent.md
 │   ├── backend-routes-agent.md
-│   └── auth-agent.md
+│   ├── auth-agent.md
+│   └── api-docs-agent.md
 ├── Front/                     # Aplicação Frontend (Next.js, TypeScript, Tailwind CSS, shadcn/ui, Axios)
 └── Back/                      # Aplicação Backend (Node.js, Express, Prisma ORM, SQLite, node-cache)
 ```
@@ -66,12 +74,14 @@ TCC SU/
 - **Runtime**: Node.js com TypeScript e `tsx`.
 - **Servidor HTTP**: Express.
 - **ORM & Banco de Dados**: Prisma ORM + SQLite (`prisma/dev.db`).
+- **Upload de Imagens**: Multer servindo arquivos estáticos em `/uploads/`.
 - **Cache de Memória**: `node-cache`.
 - **Validação & Segurança**: Zod, CORS, Dotenv.
 
 ### Estrutura de Pastas do Backend
 ```
 Back/
+├── uploads/                  # Armazenamento de arquivos de upload estáticos
 ├── prisma/
 │   └── schema.prisma         # Schema do banco de dados (SQLite)
 ├── src/
@@ -95,4 +105,5 @@ Back/
 3. **Tratamento de Erros**: Garantir tratamento de estados de carregamento (loading) e tratamento amigável de erros (toast/alerts).
 4. **Sem Bugs de Tipagem**: Sempre validar se os tipos TypeScript estão corretos e compilando sem falhas.
 5. **Conduta Git Rigorosa**: Seguir rigorosamente as instruções contidas em [`agents/git-commit-agent.md`](agents/git-commit-agent.md), realizando commit e git push automaticamente na branch de trabalho assim que concluir qualquer tarefa ou etapa (ex: rotas, banco, telas).
-6. **Integridade de Dados & Rotas**: Seguir as diretrizes dos agentes [`agents/database-agent.md`](agents/database-agent.md) e [`agents/backend-routes-agent.md`](agents/backend-routes-agent.md).
+6. **Integridade de Dados, Rotas & APIs**: Seguir as diretrizes dos agentes [`agents/database-agent.md`](agents/database-agent.md), [`agents/backend-routes-agent.md`](agents/backend-routes-agent.md) e [`agents/api-docs-agent.md`](agents/api-docs-agent.md).
+7. **Documentação Síncrona**: Sempre que alterar rotas ou contratos de API, atualizar simultaneamente o `README.md` e o [`agents/api-docs-agent.md`](agents/api-docs-agent.md).

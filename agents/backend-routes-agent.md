@@ -45,6 +45,11 @@ O backend segue a separação em camadas:
 4. **Tratamento de Exceções**:
    - Rotas assíncronas devem tratar erros via `try/catch` ou middleware global de exceções para evitar queda do processo Node.js.
 
+5. **⚡ REGRA OBRIGATÓRIA: Atualização Síncrona da Documentação de APIs**:
+   - Sempre que qualquer rota, parâmetro, middleware ou payload for criado, alterado ou excluído no Backend, o Agente DEVE OBRIGATORIAMENTE atualizar simultaneamente:
+     1. A seção **"📡 Documentação das APIs & Endpoints"** no arquivo [`README.md`](file:///c:/Users/ryanl/OneDrive/Desktop/TCC%20SU/README.md).
+     2. O arquivo do agente de documentação e integração de APIs ([`agents/api-docs-agent.md`](file:///c:/Users/ryanl/OneDrive/Desktop/TCC%20SU/agents/api-docs-agent.md)).
+
 ---
 
 ## 🛡️ Middlewares no Express (`src/middlewares/`)
