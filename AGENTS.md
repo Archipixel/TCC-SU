@@ -12,6 +12,7 @@ Cada agente possui um arquivo de diretriz detalhado armazenado na pasta `agents/
    - **Regra Absoluta**: NUNCA commitar ou fazer push direto na `main`/`master`.
    - **Formato**: Conventional Commits em inglês (`feat:`, `fix:`, `chore:`, `refactor:`, etc.).
    - **Fluxo**: Branch isolada -> Push -> Pull Request estruturado.
+   - **Auto-Commit & Push**: Ao concluir qualquer etapa/tarefa (ex: rotas, banco, telas), realizar commit e push automaticamente na branch da tarefa.
 
 2. 🗄️ **[Agente 2: Banco de Dados e Prisma ORM](agents/database-agent.md)**
    - **ORM**: Prisma ORM com SQLite (`dev.db`).
@@ -99,5 +100,5 @@ Back/
 2. **Qualidade Visual & UX**: A interface do usuário deve ter visual moderno, limpo, responsivo e agradável.
 3. **Tratamento de Erros**: Garantir tratamento de estados de carregamento (loading) e tratamento amigável de erros (toast/alerts).
 4. **Sem Bugs de Tipagem**: Sempre validar se os tipos TypeScript estão corretos e compilando sem falhas.
-5. **Conduta Git Rigorosa**: Seguir rigorosamente as instruções contidas em [`agents/git-commit-agent.md`](agents/git-commit-agent.md).
+5. **Conduta Git Rigorosa**: Seguir rigorosamente as instruções contidas em [`agents/git-commit-agent.md`](agents/git-commit-agent.md), realizando commit e git push automaticamente na branch de trabalho assim que concluir qualquer tarefa ou etapa (ex: rotas, banco, telas).
 6. **Integridade de Dados & Rotas**: Seguir as diretrizes dos agentes [`agents/database-agent.md`](agents/database-agent.md) e [`agents/backend-routes-agent.md`](agents/backend-routes-agent.md).

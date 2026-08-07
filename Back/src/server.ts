@@ -5,6 +5,7 @@ import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
 import mediaRoutes from "./routes/media-routes";
 import newsRoutes from "./routes/news-routes";
+import commentRoutes from "./routes/comment-routes";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/media", mediaRoutes);
+app.use("/api/comments", commentRoutes);
 app.use("/api/news", newsRoutes);
 
 // Iniciar Servidor

@@ -13,6 +13,18 @@ enum Role {
   USER
 }
 
+enum NewsStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(uuid())
   googleId  String   @unique @map("google_id")
@@ -22,19 +34,9 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
   news      News[]
-
+  comments  Comment[]
   @@map("users")
-}
-
-model SystemLog {
-  id        String   @id @default(uuid())
-  action    String
-  details   String?
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("system_logs")
 }
 
 model Media {
@@ -48,24 +50,55 @@ model Media {
   height       Int?
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
-
   newsCovers   News[]
-
   @@map("media")
 }
 
 model News {
-  id           String   @id @default(uuid())
-  title        String
-  slug         String   @unique
+  id           Int        @id @default(autoincrement())
+  title        String     @unique
+  slug         String     @unique
   content      String
-  summary      String?
-  coverImageId String?  @map("cover_image_id")
-  coverImage   Media?   @relation(fields: [coverImageId], references: [id], onDelete: SetNull)
-  authorId     String   @map("author_id")
-  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
+  coverImageId String?    @map("cover_image_id")
+  coverImage   Media?     @relation(fields: [coverImageId], references: [id], onDelete: SetNull)
+  status       NewsStatus @default(DRAFT)
+  publishedAt  DateTime?
+  authorId     String
+  author       User       @relation(fields: [authorId], references: [id])
+  tags         Tag[]
+  comments     Comment[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   @@map("news")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  news      News[]
+  @@map("tags")
+}
+
+model Comment {
+  id        String        @id @default(uuid())
+  content   String
+  status    CommentStatus @default(PENDING)
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsId    Int           @map("news_id")
+  news      News          @relation(fields: [newsId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  @@map("comments")
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("system_logs")
 }

@@ -5,6 +5,14 @@
 > **NENHUMA IA OU DESENVOLVEDOR PODE COMMITAR OU FAZER PUSH DIRETO NA BRANCH `main` OU `master`.**
 > Todo novo código ou alteração deve ser feito EXCLUSIVAMENTE em uma branch isolada (`feature/*`, `fix/*`, `chore/*`, `refactor/*`, `docs/*`).
 
+> [!IMPORTANT]
+> ### ⚡ REGRA DE AUTO-COMMIT E PUSH AUTOMÁTICO
+> **Ao finalizar qualquer tarefa ou etapa lógica** (exemplo: criar/alterar rotas, modificar o banco de dados/prisma, criar componentes de tela, refatorar código, etc.), o Agente de IA / Desenvolvedor **DEVE imediatamente**:
+> 1. Executar `git add .`
+> 2. Criar o commit seguindo Conventional Commits em inglês (`git commit -m "tipo: mensagem em inglês"`).
+> 3. Executar `git push origin <nome-da-branch-atual>` na branch isolada da tarefa.
+> 4. NUNCA fazer push na `main`/`master`. O push DEVE ser feito na branch de trabalho da funcionalidade.
+
 ---
 
 ## 🛡️ Fluxo Seguro de Desenvolvimento
