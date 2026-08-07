@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
 
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
@@ -8,6 +9,7 @@ import newsRoutes from "./routes/news";
 import commentRoutes from "./routes/comment-routes";
 import categoryRoutes from "./routes/category-routes";
 import likesRoutes from "./routes/likes";
+import uploadRoutes from "./routes/upload-routes";
 
 dotenv.config();
 
@@ -17,6 +19,9 @@ const PORT = process.env.PORT || 3001;
 // Middlewares
 app.use(cors());
 app.use(express.json());
+
+// Servir arquivos estáticos da pasta uploads
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 // Rota de Health Check
 app.get("/api/health", (req, res) => {
@@ -33,10 +38,12 @@ app.use("/api/users", userRoutes);
 app.use("/api", newsRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/upload", uploadRoutes);
 app.use("/api", likesRoutes);
 
 // Iniciar Servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`📁 Servidor de uploads: http://localhost:${PORT}/uploads/`);
 });

@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import http from "http";
+import path from "path";
 
 import userRoutes from "../routes/user-routes";
 import authRoutes from "../routes/auth-routes";
@@ -9,6 +9,7 @@ import newsRoutes from "../routes/news";
 import commentRoutes from "../routes/comment-routes";
 import categoryRoutes from "../routes/category-routes";
 import likesRoutes from "../routes/likes";
+import uploadRoutes from "../routes/upload-routes";
 import { generateJwtToken } from "../services/auth-service";
 import { Role } from "@prisma/client";
 
@@ -17,6 +18,8 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -28,6 +31,7 @@ app.use("/api/users", userRoutes);
 app.use("/api", newsRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/upload", uploadRoutes);
 app.use("/api", likesRoutes);
 
 const TEST_PORT = 3099;
@@ -128,6 +132,17 @@ async function runTests() {
 
       // 7. Likes Routes
       await testEndpoint("GET /api/noticias/1/likes", "/api/noticias/1/likes", {}, [200, 404]);
+
+      // 8. Upload Routes
+      await testEndpoint(
+        "POST /api/upload (Sem arquivo -> 400)",
+        "/api/upload",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${adminToken}` },
+        },
+        [400]
+      );
 
       console.log(`\n========================================`);
       console.log(`📊 RESULTADO DOS TESTES DAS ROTAS BACKEND`);

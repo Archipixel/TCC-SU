@@ -123,6 +123,43 @@ export async function handleUpdateNewsController(req: Request, res: Response) {
   }
 }
 
+export async function handleUploadNewsCoverController(req: Request, res: Response) {
+  try {
+    const rawId = req.params.id;
+    if (!rawId) {
+      return res.status(400).json({ error: true, message: "ID da notícia é obrigatório." });
+    }
+
+    const newsId = Number(rawId);
+    if (isNaN(newsId)) {
+      return res.status(400).json({ error: true, message: "ID da notícia inválido." });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: true, message: "Nenhum arquivo de imagem de capa foi enviado." });
+    }
+
+    const host = req.get("host") || "localhost:3001";
+    const protocol = req.protocol || "http";
+    const coverUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+
+    const updatedNews = await updateNews(newsId, {
+      coverImage: coverUrl,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Capa da notícia atualizada com sucesso.",
+      data: {
+        coverImage: coverUrl,
+        news: updatedNews,
+      },
+    });
+  } catch (error) {
+    return handleControllerError(res, error, "Erro ao vincular capa da notícia");
+  }
+}
+
 export async function handleDeleteNewsController(req: Request, res: Response) {
   try {
     const rawId = req.params.id || req.body.idDaNoticia || req.body.id;
