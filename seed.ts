@@ -1,6 +1,6 @@
 /// <reference path="./Back/node_modules/@types/node/index.d.ts" />
 
-import { PrismaClient, Role, NewsStatus, CommentStatus } from "./Back/node_modules/@prisma/client";
+import { PrismaClient, Role, NewsStatus, CommentStatus } from "./Back/node_modules/@prisma/client/index.js";
 import path from "path";
 
 // Resolva o caminho do banco de dados SQLite em Back/prisma/dev.db
