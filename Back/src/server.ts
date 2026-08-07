@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
-import newsRoutes from "./routes/news";
+import mediaRoutes from "./routes/media-routes";
+import newsRoutes from "./routes/news-routes";
 import commentRoutes from "./routes/comment-routes";
 
 dotenv.config();
@@ -14,7 +14,8 @@ const PORT = process.env.PORT || 3001;
 
 // Middlewares
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "60mb" }));
+app.use(express.urlencoded({ limit: "60mb", extended: true }));
 
 // Rota de Health Check
 app.get("/api/health", (req, res) => {
@@ -28,8 +29,9 @@ app.get("/api/health", (req, res) => {
 // Registrar Rotas da Aplicação
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/media", mediaRoutes);
 app.use("/api/comments", commentRoutes);
-app.use("/api", newsRoutes);
+app.use("/api/news", newsRoutes);
 
 // Iniciar Servidor
 app.listen(PORT, () => {
