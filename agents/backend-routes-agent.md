@@ -6,7 +6,7 @@ Este documento define a arquitetura, convenções e padrões para criação e ma
 
 ## 🏗️ Arquitetura da Camada de Rotas
 
-O backend segue a separação em camadas:
+O backend segue a separação em 3 camadas:
 - **Routes (`src/routes/`)**: Declaração das rotas HTTP, associação de middlewares e roteamento.
 - **Controllers (`src/controllers/`)**: Recepção da requisição (`req`), extração de parâmetros, validação de payload com Zod e formatação da resposta (`res`).
 - **Services (`src/services/`)**: Regra de negócio pura, chamadas ao Prisma ORM (`src/lib/prisma.ts`) e manipulação de cache (`src/lib/cache.ts`).
@@ -31,7 +31,10 @@ O backend segue a separação em camadas:
      - `200 OK`: Sucesso com dados retornados.
      - `201 Created`: Recurso criado com sucesso.
      - `400 Bad Request`: Falha de validação nos dados de entrada.
+     - `401 Unauthorized`: Falha de autenticação (JWT ausente/inválido).
+     - `403 Forbidden`: Permissão de perfil (role) insuficiente.
      - `404 Not Found`: Recurso não encontrado.
+     - `409 Conflict`: Conflito de dados (registro já existente).
      - `500 Internal Server Error`: Erro inesperado do servidor.
    - Padrão de JSON de resposta de erro:
      ```json
@@ -43,9 +46,13 @@ O backend segue a separação em camadas:
      ```
 
 4. **Tratamento de Exceções**:
-   - Rotas assíncronas devem tratar erros via `try/catch` ou middleware global de exceções para evitar queda do processo Node.js.
+   - Rotas assíncronas devem tratar erros via `try/catch` para evitar queda do processo Node.js.
 
-5. **⚡ REGRA OBRIGATÓRIA: Atualização Síncrona da Documentação de APIs**:
+5. **Upload de Arquivos & Servimento Estático**:
+   - Uploads de mídias/imagens são gerenciados pelo middleware Multer em `src/middlewares/upload-middleware.ts`.
+   - Os arquivos são salvos no diretório `Back/uploads/` e servidos estaticamente em `/uploads/` no mesmo servidor Express (`src/server.ts`).
+
+6. **⚡ REGRA OBRIGATÓRIA: Atualização Síncrona da Documentação de APIs**:
    - Sempre que qualquer rota, parâmetro, middleware ou payload for criado, alterado ou excluído no Backend, o Agente DEVE OBRIGATORIAMENTE atualizar simultaneamente:
      1. A seção **"📡 Documentação das APIs & Endpoints"** no arquivo [`README.md`](file:///c:/Users/ryanl/OneDrive/Desktop/TCC%20SU/README.md).
      2. O arquivo do agente de documentação e integração de APIs ([`agents/api-docs-agent.md`](file:///c:/Users/ryanl/OneDrive/Desktop/TCC%20SU/agents/api-docs-agent.md)).
@@ -73,53 +80,5 @@ Requisição HTTP ──► [ Middleware 1: Autenticação ] ──► [ Middlew
   - Se `req.user.role` estiver no array, chama `next()`.
   - Se o cargo for insuficiente (ex: um `USER` tentando deletar um recurso de `ADMIN`), interrompe com status `403 Forbidden`.
 
----
-
-## 🛠️ Exemplo Prático de Implementação
-
-### 1. Controller Exemplo (`src/controllers/user-controller.ts`)
-```typescript
-import { Request, Response } from "express";
-import { z } from "zod";
-import { createUser, getUsers } from "../services/user-service";
-
-const createUserSchema = z.object({
-  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  email: z.string().email("E-mail inválido"),
-});
-
-export async function handleGetUsers(req: Request, res: Response) {
-  try {
-    const users = await getUsers();
-    return res.status(200).json({ success: true, data: users });
-  } catch (error: any) {
-    return res.status(500).json({ error: true, message: error.message || "Erro interno no servidor" });
-  }
-}
-
-export async function handleCreateUser(req: Request, res: Response) {
-  try {
-    const data = createUserSchema.parse(req.body);
-    const user = await createUser(data);
-    return res.status(201).json({ success: true, data: user });
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: true, message: "Dados inválidos", details: error.errors });
-    }
-    return res.status(500).json({ error: true, message: error.message || "Erro ao criar usuário" });
-  }
-}
-```
-
-### 2. Rotas (`src/routes/user-routes.ts`)
-```typescript
-import { Router } from "express";
-import { handleGetUsers, handleCreateUser } from "../controllers/user-controller";
-
-const router = Router();
-
-router.get("/", handleGetUsers);
-router.post("/", handleCreateUser);
-
-export default router;
-```
+### 3. `uploadSingleImage` / `uploadCoverImage` (`src/middlewares/upload-middleware.ts`)
+- **Objetivo**: Processar requisições `multipart/form-data` para salvar mídias de imagem no diretório `/uploads`.

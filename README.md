@@ -56,6 +56,14 @@ Abaixo está a documentação técnica de todas as APIs disponíveis no backend 
 
 ---
 
+### 🩺 0. Health Check (`/api/health`)
+
+| Método | Endpoint | Proteção | Descrição |
+| :--- | :--- | :--- | :--- |
+| **`GET`** | `/api/health` | Público | Verifica o estado operacional do servidor backend. |
+
+---
+
 ### 🔑 1. Autenticação e Usuários (`/api/auth` & `/api/users`)
 
 | Método | Endpoint | Proteção | Descrição |
@@ -64,6 +72,7 @@ Abaixo está a documentação técnica de todas as APIs disponíveis no backend 
 | **`GET`** | `/api/auth/me` | `Bearer Token` | Retorna o perfil atualizado do usuário logado. |
 | **`POST`** | `/api/auth/logout` | `Bearer Token` | Encerra a sessão do usuário. |
 | **`GET`** | `/api/users` | Público | Lista todos os usuários cadastrados. |
+| **`POST`** | `/api/users` | Público / Teste | Cria um novo usuário no banco. |
 
 #### Exemplo de Requisição — Login Google (`POST /api/auth/google`)
 - **Body**:
@@ -99,6 +108,7 @@ Abaixo está a documentação técnica de todas as APIs disponíveis no backend 
 | **`GET`** | `/api/noticias/publicadas` | Público | Lista notícias com status `PUBLISHED`. |
 | **`GET`** | `/api/noticias/slug/:slug` | Público | Busca detalhes de uma notícia pelo slug único. |
 | **`GET`** | `/api/pesquisa` | Público | Busca matérias por termo no título ou conteúdo. |
+| **`GET`** | `/api/paginacao` | Público | Lista notícias publicadas com navegação paginada (`page`, `limit`). |
 | **`POST`** | `/api/noticias` | `ADMIN` / `EDITOR` | Cria uma nova notícia. |
 | **`PUT`** | `/api/noticias/:id` | `ADMIN` / `EDITOR` | Edita uma notícia existente. |
 | **`POST`** | `/api/noticias/:id/capa` | `ADMIN` / `EDITOR` | Upload multipart e vinculação direta da capa da notícia. |
@@ -161,6 +171,8 @@ Abaixo está a documentação técnica de todas as APIs disponíveis no backend 
 | :--- | :--- | :--- | :--- |
 | **`GET`** | `/api/comments/news/:newsId` | Público | Lista comentários aprovados de uma notícia. |
 | **`POST`** | `/api/comments` | Autenticado | Envia um comentário para moderação (`PENDING`). |
+| **`PUT`** | `/api/comments/:id` | Autenticado | Atualiza um comentário próprio (ou `ADMIN`/`EDITOR`). |
+| **`DELETE`** | `/api/comments/:id` | Autenticado | Exclui um comentário próprio (ou `ADMIN`/`EDITOR`). |
 | **`GET`** | `/api/comments/pending` | `ADMIN` / `EDITOR` | Lista comentários pendentes de moderação. |
 | **`PATCH`** | `/api/comments/:id/approve` | `ADMIN` / `EDITOR` | Aprova um comentário. |
 | **`PATCH`** | `/api/comments/:id/reject` | `ADMIN` / `EDITOR` | Rejeita um comentário. |

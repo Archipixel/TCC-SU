@@ -14,7 +14,7 @@ Este documento define a especificação completa de contratos das APIs REST do p
 
 ---
 
-## 🔐 Formato Padrão de Respostas
+## 📋 Formato Padrão de Respostas
 
 Todas as APIs do sistema respondem em formato JSON padronizado:
 
@@ -40,14 +40,29 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
 
 ## 📋 Catálogo Completo de Endpoints
 
-### 1. 🔑 Autenticação e Usuários (`/api/auth` & `/api/users`)
+### 🩺 0. Health Check (`/api/health`)
+
+#### `GET /api/health`
+- **Acesso**: Público
+- **Resposta de Sucesso (`200 OK`)**:
+  ```json
+  {
+    "status": "online",
+    "timestamp": "2026-08-06T20:00:00.000Z",
+    "service": "TCC SU Backend API"
+  }
+  ```
+
+---
+
+### 🔑 1. Autenticação e Usuários (`/api/auth` & `/api/users`)
 
 #### `POST /api/auth/google`
 - **Acesso**: Público
 - **O que precisa (Body)**:
   ```json
   {
-    "idToken": "string (token OAuth fornecido pela biblioteca do Google no frontend)"
+    "idToken": "string (token OAuth fornecido pelo Google no frontend)"
   }
   ```
 - **Resposta de Sucesso (`200 OK`)**:
@@ -86,6 +101,16 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
   }
   ```
 
+#### `POST /api/auth/logout`
+- **Acesso**: Autenticado (`Headers: Authorization: Bearer <token>`)
+- **Resposta de Sucesso (`200 OK`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Logout realizado com sucesso"
+  }
+  ```
+
 #### `GET /api/users`
 - **Acesso**: Público
 - **Resposta de Sucesso (`200 OK`)**:
@@ -104,9 +129,33 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
   }
   ```
 
+#### `POST /api/users`
+- **Acesso**: Público / Teste
+- **O que precisa (Body)**:
+  ```json
+  {
+    "name": "Novo Usuário",
+    "email": "novo@exemplo.com",
+    "role": "USER"
+  }
+  ```
+- **Resposta de Sucesso (`201 Created`)**:
+  ```json
+  {
+    "success": true,
+    "message": "Usuário criado com sucesso",
+    "data": {
+      "id": "uuid-v4",
+      "name": "Novo Usuário",
+      "email": "novo@exemplo.com",
+      "role": "USER"
+    }
+  }
+  ```
+
 ---
 
-### 2. 📰 Notícias (`/api/noticias`)
+### 📰 2. Notícias (`/api/noticias`)
 
 #### `GET /api/noticias`
 - **Acesso**: Público
@@ -145,6 +194,15 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
   }
   ```
 
+#### `GET /api/noticias/publicadas`
+- **Acesso**: Público (Filtra por `status: PUBLISHED`)
+
+#### `GET /api/noticias/slug/:slug`
+- **Acesso**: Público (Busca por slug único)
+
+#### `GET /api/pesquisa?pesquisa=termo`
+- **Acesso**: Público (Busca por termo de pesquisa)
+
 #### `POST /api/noticias`
 - **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
 - **O que precisa (Body)**:
@@ -157,46 +215,26 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
     "categoryIds": ["uuid-categoria-1"]
   }
   ```
-- **Resposta de Sucesso (`201 Created`)**:
-  ```json
-  {
-    "success": true,
-    "message": "Notícia criada com sucesso",
-    "data": {
-      "id": 2,
-      "title": "Novo Artigo de Teste",
-      "slug": "novo-artigo-de-teste",
-      "status": "DRAFT"
-    }
-  }
-  ```
+
+#### `PUT /api/noticias/:id`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
 
 #### `POST /api/noticias/:id/capa`
 - **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
 - **Content-Type**: `multipart/form-data`
-- **O que precisa (Form Data)**:
-  - `coverImage`: Arquivo de imagem (JPG, PNG, WEBP, GIF, AVIF - Máx 5MB).
-- **Resposta de Sucesso (`200 OK`)**:
-  ```json
-  {
-    "success": true,
-    "message": "Capa da notícia atualizada com sucesso.",
-    "data": {
-      "coverImage": "http://localhost:3001/uploads/capa-17000000.png",
-      "news": { "id": 1, "coverImage": "http://localhost:3001/uploads/capa-17000000.png" }
-    }
-  }
-  ```
+- **O que precisa (Form Data)**: `coverImage` (Arquivo de imagem, max 5MB).
+
+#### `DELETE /api/noticias/:id`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN])`)
 
 ---
 
-### 3. 🖼️ Upload de Imagens (`/api/upload`)
+### 🖼️ 3. Upload de Imagens (`/api/upload`)
 
 #### `POST /api/upload`
 - **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
 - **Content-Type**: `multipart/form-data`
-- **O que precisa (Form Data)**:
-  - `file`: Arquivo de imagem.
+- **O que precisa (Form Data)**: `file` (Arquivo de imagem).
 - **Resposta de Sucesso (`201 Created`)**:
   ```json
   {
@@ -215,40 +253,29 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
 
 ---
 
-### 4. 🏷️ Categorias (`/api/categories`)
+### 🏷️ 4. Categorias (`/api/categories`)
 
 #### `GET /api/categories`
 - **Acesso**: Público
-- **Resposta de Sucesso (`200 OK`)**:
-  ```json
-  {
-    "success": true,
-    "message": "Categorias listadas com sucesso",
-    "data": [
-      { "id": "uuid-1", "name": "Arte & Cultura" },
-      { "id": "uuid-2", "name": "Tecnologia & Inovação" }
-    ]
-  }
-  ```
+
+#### `GET /api/categories/:id/news`
+- **Acesso**: Público (Retorna matérias atreladas à categoria)
 
 #### `POST /api/categories`
 - **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
-- **O que precisa (Body)**:
-  ```json
-  { "name": "Nova Categoria" }
-  ```
-- **Resposta de Sucesso (`201 Created`)**:
-  ```json
-  {
-    "success": true,
-    "message": "Categoria criada com sucesso",
-    "data": { "id": "uuid-3", "name": "Nova Categoria" }
-  }
-  ```
+
+#### `PUT /api/categories/:id`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
+
+#### `DELETE /api/categories/:id`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN])`)
 
 ---
 
-### 5. 💬 Comentários (`/api/comments`)
+### 💬 5. Comentários (`/api/comments`)
+
+#### `GET /api/comments/news/:newsId`
+- **Acesso**: Público (Retorna comentários aprovados)
 
 #### `POST /api/comments`
 - **Acesso**: Protegido (`ensureAuthenticated`)
@@ -259,59 +286,34 @@ Todas as APIs do sistema respondem em formato JSON padronizado:
     "content": "Excelente matéria!"
   }
   ```
-- **Resposta de Sucesso (`201 Created`)**:
+
+#### `PUT /api/comments/:id`
+- **Acesso**: Protegido (Autor do comentário ou `ADMIN`/`EDITOR`)
+- **O que precisa (Body)**:
   ```json
   {
-    "success": true,
-    "message": "Comentário enviado para aprovação com sucesso.",
-    "data": { "id": "uuid-comment", "status": "PENDING" }
+    "content": "Comentário atualizado pelo usuário."
   }
   ```
 
-#### `GET /api/comments/news/:newsId`
-- **Acesso**: Público (Retorna comentários aprovados)
-- **Resposta de Sucesso (`200 OK`)**:
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": "uuid-comment",
-        "content": "Excelente matéria!",
-        "status": "APPROVED",
-        "user": { "name": "Lucas Leitor", "avatar": "..." }
-      }
-    ]
-  }
-  ```
+#### `DELETE /api/comments/:id`
+- **Acesso**: Protegido (Autor do comentário ou `ADMIN`/`EDITOR`)
+
+#### `GET /api/comments/pending`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
+
+#### `PATCH /api/comments/:id/approve`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
+
+#### `PATCH /api/comments/:id/reject`
+- **Acesso**: Protegido (`ensureAuthenticated`, `ensureRole([ADMIN, EDITOR])`)
 
 ---
 
-### 6. ❤️ Curtidas (`/api/noticias/:id/like` & `/likes`)
+### ❤️ 6. Curtidas (`/api/noticias/:id/like` & `/likes`)
 
 #### `POST /api/noticias/:id/like`
 - **Acesso**: Protegido (`ensureAuthenticated`)
-- **Resposta de Sucesso (`200/201 OK`)**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "liked": true,
-      "totalLikes": 5,
-      "message": "Notícia curtida com sucesso!"
-    }
-  }
-  ```
 
 #### `GET /api/noticias/:id/likes`
 - **Acesso**: Público / Opcionalmente Autenticado
-- **Resposta de Sucesso (`200 OK`)**:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "totalLikes": 5,
-      "userHasLiked": true
-    }
-  }
-  ```
