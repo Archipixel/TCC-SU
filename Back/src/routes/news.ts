@@ -1,323 +1,44 @@
-import { Router, Request, Response } from "express";
-import { prisma } from "../lib/prisma";
+import { Router } from "express";
 import { ensureAuthenticated } from "../middlewares/auth-middleware";
 import { ensureRole } from "../middlewares/role-middleware";
 import { Role } from "@prisma/client";
+import {
+  handleCreateNewsController,
+  handleUpdateNewsController,
+  handleDeleteNewsController,
+  handleGetNewsBySlugController,
+  handleListNewsController,
+  handleListPublishedNewsController,
+  handlePaginatedNewsController,
+  handleSearchNewsController,
+} from "../controllers/news-controller";
 
 const router = Router();
 
-// ============================================================================
-// FUNÇÃO AUXILIAR: buildNewsFilter
-// Unifica o suporte a query params antigos (?q=termo) e novos (?pesquisa= ou ?search=),
-// além de suporte a status (boolean) e IDs de autor.
-// ============================================================================
-function buildNewsFilter(query: any, onlyPublished = false) {
-  const where: any = {};
+// Rotas de Leitura (Públicas)
+router.get("/noticias/slug/:slug", handleGetNewsBySlugController);
+router.get("/noticia/:slug", handleGetNewsBySlugController);
 
-  // 1. Processa o filtro por STATUS enviado na query
-  if (query.status) {
-    const normalizedStatus = String(query.status).toUpperCase();
-    const validStatuses = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+router.get("/noticias/publicadas", handleListPublishedNewsController);
+router.get("/listar_noticias_publicadas", handleListPublishedNewsController);
 
-    if (validStatuses.includes(normalizedStatus)) {
-      where.status = normalizedStatus;
-    }
-  }
+router.get("/noticias/paginacao", handlePaginatedNewsController);
+router.get("/paginacao", handlePaginatedNewsController);
 
-  // 2. Regra para rotas de publicadas
-  if (onlyPublished && !query.status) {
-    // Se a rota for de publicadas e o cliente não especificou status manualmente,
-    // busca todas que estão com o enum PUBLISHED.
-    where.status = "PUBLISHED";
-  }
+router.get("/noticias/pesquisa", handleSearchNewsController);
+router.get("/pesquisa", handleSearchNewsController);
 
-  // 3. FILTRO POR AUTOR
-  const authorId = query.authorId || query.author || query.author_id;
-  if (authorId) {
-    where.authorId = String(authorId);
-  }
+router.get("/noticias", handleListNewsController);
+router.get("/listar_noticias", handleListNewsController);
 
-  // 4. PESQUISA POR TERMO
-  const termo = query.pesquisa || query.search || query.q;
-  if (termo && typeof termo === "string" && termo.trim() !== "") {
-    const cleanTerm = termo.trim();
-    where.OR = [
-      { title: { contains: cleanTerm, mode: "insensitive" } },
-      { content: { contains: cleanTerm, mode: "insensitive" } },
-    ];
-  }
+// Rotas de Escrita / Modificação (Protegidas por Auth + Roles)
+router.post("/noticias", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNewsController);
+router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNewsController);
 
-  return where;
-}
-// ============================================================================
-// HELPER DE CONSULTA E PAGINAÇÃO
-// Centraliza a execução do Prisma para evitar repetição de lógica
-// ============================================================================
-async function fetchNewsData(where: any, query: any, defaultSortField: "createdAt" | "publishedAt" = "createdAt") {
-  const { page, limit } = query;
+router.put("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNewsController);
+router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNewsController);
 
-  if (page || limit) {
-    const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, Number(limit) || 10)); // Limite máximo defensivo (100)
-    const skip = (pageNum - 1) * limitNum;
-
-    const [noticias, totalNoticias] = await Promise.all([
-      prisma.news.findMany({
-        where,
-        orderBy: { [defaultSortField]: "desc" },
-        skip,
-        take: limitNum,
-        include: { categories: true },
-      }),
-      prisma.news.count({ where }),
-    ]);
-
-    const totalPages = totalNoticias === 0 ? 0 : Math.ceil(totalNoticias / limitNum);
-
-    return {
-      data: noticias,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        totalItems: totalNoticias,
-        totalPages,
-        hasNextPage: pageNum < totalPages,
-        hasPreviousPage: pageNum > 1,
-      },
-    };
-  }
-
-  return prisma.news.findMany({
-    where,
-    orderBy: { [defaultSortField]: "desc" },
-    include: { categories: true },
-  });
-}
-
-// ============================================================================
-// CRIAR NOTÍCIA (POST /noticias e POST /criar_noticia)
-// ============================================================================
-const handleCreateNews = async (req: Request, res: Response) => {
-  try {
-    const { title, content, coverImage, authorId, slug, categoryIds, categories } = req.body;
-    const catIds = categoryIds || categories;
-
-    if (!title || !slug) {
-      return res.status(400).json({ error: "Título e slug são obrigatórios." });
-    }
-
-    const novaNoticia = await prisma.news.create({
-      data: {
-        title,
-        slug,
-        content,
-        authorId: authorId ? String(authorId) : (req as any).user?.id || "",
-        coverImage,
-        ...(Array.isArray(catIds) && catIds.length > 0 && {
-          categories: {
-            connect: catIds.map((id: string) => ({ id: String(id) })),
-          },
-        }),
-      },
-      include: { categories: true },
-    });
-
-    return res.status(201).json(novaNoticia);
-  } catch (error) {
-    console.error("Erro ao criar notícia:", error);
-    return res.status(500).json({ error: "Erro ao salvar no banco de dados." });
-  }
-};
-
-router.post("/noticias", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNews);
-router.post("/criar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleCreateNews);
-
-// ============================================================================
-// EDITAR NOTÍCIA (PUT /noticias/:id e PUT /editar_noticia)
-// ============================================================================
-const handleUpdateNews = async (req: Request, res: Response) => {
-  try {
-    const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
-    if (!idParam) {
-      return res.status(400).json({ error: "ID da notícia é obrigatório." });
-    }
-
-    const idNoticia = Number(idParam);
-    if (isNaN(idNoticia)) {
-      return res.status(400).json({ error: "ID inválido." });
-    }
-
-    const { title, content, coverImage, authorId, slug, status, publishedAt, categoryIds, categories } = req.body;
-    const catIds = categoryIds !== undefined ? categoryIds : categories;
-
-    // Normaliza o status enviado se existir
-    const normalizedStatus = status ? String(status).toUpperCase() : undefined;
-
-    // Lógica para tratar o publishedAt:
-    // 1. Se foi passado explicitamente no body, usa o valor passado
-    // 2. Se o status mudou para PUBLISHED e publishedAt não veio, define como a data/hora atual
-    let finalPublishedAt: Date | null | undefined = undefined;
-
-    if (publishedAt !== undefined) {
-      finalPublishedAt = publishedAt ? new Date(publishedAt) : null;
-    } else if (normalizedStatus === "PUBLISHED") {
-      finalPublishedAt = new Date();
-    }
-
-    const noticiaAtualizada = await prisma.news.update({
-      where: { id: idNoticia },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(slug !== undefined && { slug }),
-        ...(content !== undefined && { content }),
-        ...(coverImage !== undefined && { coverImage }),
-        ...(authorId !== undefined && { authorId: String(authorId) }),
-        ...(normalizedStatus !== undefined && { status: normalizedStatus as any }),
-        ...(finalPublishedAt !== undefined && { publishedAt: finalPublishedAt }),
-        ...(Array.isArray(catIds) && {
-          categories: {
-            set: catIds.map((id: string) => ({ id: String(id) })),
-          },
-        }),
-      },
-      include: { categories: true },
-    });
-
-    return res.status(200).json(noticiaAtualizada);
-  } catch (error) {
-    console.error("Erro ao editar notícia:", error);
-    return res.status(500).json({ error: "Erro ao atualizar no banco de dados." });
-  }
-};
-
-router.put("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNews);
-router.put("/editar_noticia", ensureAuthenticated, ensureRole([Role.ADMIN, Role.EDITOR]), handleUpdateNews);
-
-// ============================================================================
-// EXCLUIR NOTÍCIA (DELETE /noticias/:id e DELETE /excluir_noticia)
-// ============================================================================
-const handleDeleteNews = async (req: Request, res: Response) => {
-  try {
-    const idParam = req.params.id || req.body.idDaNoticia || req.body.id;
-    if (!idParam) {
-      return res.status(400).json({ error: "ID da notícia é obrigatório." });
-    }
-
-    const idNoticia = Number(idParam);
-    if (isNaN(idNoticia)) {
-      return res.status(400).json({ error: "ID inválido." });
-    }
-
-    const noticiaExcluida = await prisma.news.delete({
-      where: { id: idNoticia },
-    });
-
-    return res.status(200).json(noticiaExcluida);
-  } catch (error) {
-    console.error("Erro ao excluir notícia:", error);
-    return res.status(500).json({ error: "Erro ao deletar no banco de dados." });
-  }
-};
-
-router.delete("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
-router.delete("/excluir_noticia/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNews);
-
-// ============================================================================
-// BUSCAR NOTÍCIA PELO SLUG (GET /noticias/slug/:slug e GET /noticia/:slug)
-// ============================================================================
-const handleGetNewsBySlug = async (req: Request, res: Response) => {
-  try {
-    const slug = String(req.params.slug);
-    const noticia = await prisma.news.findUnique({
-      where: { slug },
-      include: { categories: true },
-    });
-
-    if (!noticia) {
-      return res.status(404).json({ error: "Notícia não encontrada." });
-    }
-
-    return res.status(200).json(noticia);
-  } catch (error) {
-    console.error("Erro ao buscar notícia pelo slug:", error);
-    return res.status(500).json({ error: "Erro interno no servidor." });
-  }
-};
-
-router.get("/noticias/slug/:slug", handleGetNewsBySlug);
-router.get("/noticia/:slug", handleGetNewsBySlug);
-
-// ============================================================================
-// LISTAR NOTÍCIAS GERAIS (GET /noticias e GET /listar_noticias)
-// ============================================================================
-const handleListNews = async (req: Request, res: Response) => {
-  try {
-    const where = buildNewsFilter(req.query);
-    const result = await fetchNewsData(where, req.query, "createdAt");
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error("Erro ao buscar notícias:", error);
-    return res.status(500).json({ error: "Erro ao buscar notícias no servidor." });
-  }
-};
-
-router.get("/noticias", handleListNews);
-router.get("/listar_noticias", handleListNews);
-
-// ============================================================================
-// LISTAR NOTÍCIAS PUBLICADAS (GET /noticias/publicadas e GET /listar_noticias_publicadas)
-// ============================================================================
-const handleListPublishedNews = async (req: Request, res: Response) => {
-  try {
-    const where = buildNewsFilter(req.query, true);
-    const result = await fetchNewsData(where, req.query, "publishedAt");
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error("Erro ao buscar notícias publicadas:", error);
-    return res.status(500).json({ error: "Erro ao buscar notícias publicadas no servidor." });
-  }
-};
-
-router.get("/noticias/publicadas", handleListPublishedNews);
-router.get("/listar_noticias_publicadas", handleListPublishedNews);
-
-// ============================================================================
-// PAGINAÇÃO DEDICADA (GET /noticias/paginacao e GET /paginacao)
-// ============================================================================
-const handlePaginatedNews = async (req: Request, res: Response) => {
-  try {
-    const query = {
-      ...req.query,
-      page: req.query.page || 1,
-      limit: req.query.limit || 10,
-    };
-    const where = buildNewsFilter(query, true);
-    const result = await fetchNewsData(where, query, "publishedAt");
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error("Erro ao listar notícias paginadas:", error);
-    return res.status(500).json({ error: "Erro ao buscar notícias." });
-  }
-};
-
-router.get("/noticias/paginacao", handlePaginatedNews);
-router.get("/paginacao", handlePaginatedNews);
-
-// ============================================================================
-// PESQUISA (GET /noticias/pesquisa e GET /pesquisa)
-// ============================================================================
-const handleSearchNews = async (req: Request, res: Response) => {
-  try {
-    const where = buildNewsFilter(req.query);
-    const result = await fetchNewsData(where, req.query, "createdAt");
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error("Erro na busca de notícias:", error);
-    return res.status(500).json({ error: "Erro ao realizar busca." });
-  }
-};
-
-router.get("/noticias/pesquisa", handleSearchNews);
-router.get("/pesquisa", handleSearchNews);
+router.delete("/noticias/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNewsController);
+router.delete("/excluir_noticia/:id", ensureAuthenticated, ensureRole([Role.ADMIN]), handleDeleteNewsController);
 
 export default router;

@@ -1,4 +1,7 @@
 import { prisma } from "../lib/prisma";
+import { appCache } from "../lib/cache";
+
+const CATEGORIES_CACHE_KEY = "all_categories_list";
 
 export async function createCategory(name: string) {
   const existing = await prisma.category.findUnique({ where: { name } });
@@ -6,7 +9,9 @@ export async function createCategory(name: string) {
     throw new Error("CONFLICT: Categoria já existe");
   }
 
-  return prisma.category.create({ data: { name } });
+  const category = await prisma.category.create({ data: { name } });
+  appCache.del(CATEGORIES_CACHE_KEY);
+  return category;
 }
 
 export async function updateCategory(id: string, name: string) {
@@ -22,7 +27,9 @@ export async function updateCategory(id: string, name: string) {
     throw new Error("CONFLICT: Já existe uma categoria com esse nome");
   }
 
-  return prisma.category.update({ where: { id }, data: { name } });
+  const updated = await prisma.category.update({ where: { id }, data: { name } });
+  appCache.del(CATEGORIES_CACHE_KEY);
+  return updated;
 }
 
 export async function deleteCategory(id: string) {
@@ -32,12 +39,21 @@ export async function deleteCategory(id: string) {
   }
 
   await prisma.category.delete({ where: { id } });
+  appCache.del(CATEGORIES_CACHE_KEY);
 }
 
 export async function getCategories() {
-  return prisma.category.findMany({
+  const cached = appCache.get(CATEGORIES_CACHE_KEY);
+  if (cached) {
+    return cached;
+  }
+
+  const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
   });
+
+  appCache.set(CATEGORIES_CACHE_KEY, categories, 600);
+  return categories;
 }
 
 export async function getNewsByCategory(categoryId: string) {
@@ -48,7 +64,7 @@ export async function getNewsByCategory(categoryId: string) {
 
   return prisma.news.findMany({
     where: { categories: { some: { id: categoryId } } },
-    include: { categories: true },
+    include: { categories: true, author: { select: { id: true, name: true, email: true, avatar: true } } },
     orderBy: { id: "desc" },
   });
 }
