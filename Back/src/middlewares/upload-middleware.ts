@@ -2,8 +2,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Garantir que a pasta uploads/ existe
-const uploadDir = path.resolve(process.cwd(), "uploads");
+// Garantir que a pasta uploads/ fique estritamente dentro de Back/uploads/
+const uploadDir = path.resolve(__dirname, "../../uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }

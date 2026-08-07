@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 
 import userRoutes from "./routes/user-routes";
 import authRoutes from "./routes/auth-routes";
@@ -20,8 +21,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Servir arquivos estáticos da pasta uploads
-app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+// Servir arquivos estáticos estritamente da pasta Back/uploads
+const uploadsDir = path.resolve(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use("/uploads", express.static(uploadsDir));
 
 // Rota de Health Check
 app.get("/api/health", (req, res) => {
@@ -45,5 +50,5 @@ app.use("/api", likesRoutes);
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`📁 Servidor de uploads: http://localhost:${PORT}/uploads/`);
+  console.log(`📁 Pasta de uploads do Backend: ${uploadsDir}`);
 });
