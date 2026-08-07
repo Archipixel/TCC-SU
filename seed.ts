@@ -2,6 +2,10 @@
 
 import { PrismaClient, Role, NewsStatus, CommentStatus } from "./Back/node_modules/@prisma/client/index.js";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Resolva o caminho do banco de dados SQLite em Back/prisma/dev.db
 const dbPath = path.resolve(__dirname, "Back", "prisma", "dev.db");
